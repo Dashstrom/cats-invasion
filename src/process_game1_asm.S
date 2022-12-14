@@ -18,11 +18,12 @@
   Le passage des paramètres respecte les conventions x64 sous Linux
   
   Par registres :
-            Largeur de l'image : rdi
-            Hauteur de l'image : rsi
-            Pointeur sur l'image source : rdx
+            Largeur des images : rdi
+            Hauteur des images : rsi
+            Pointeur sur le tableau de pointeurs des images sources : rdx
             Pointeur sur la zone de données : rcx
 
+L'image de fond se trouve dans le premier élément
   
   Les registes rbx, rbp, r12, r13, r14, et r15 doivent être sauvegardés
   si vous les utilisez (sauvegarde par l'appelé). Les autres registres 
@@ -44,7 +45,7 @@ process_game1_asm:
   /***********************************************************
     Ajoutez votre code ici
   **********************************************************/
-
+   
 
 
 

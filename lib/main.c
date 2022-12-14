@@ -35,7 +35,7 @@
  */
 
 /* Nom de l'application */
-const gchar application_name[] = "seventies video game";
+const gchar application_name[] = "space-invaders-asm";
 
 /* Chemin de l'image par défaut */
 const gchar default_image[] = "./data/fond_noir.bmp";
@@ -75,6 +75,7 @@ typedef struct _process_task {
 } process_task_t;
 
 process_task_t process_tasks[] = {
+	{ "c", process_game1_c },
     { "asm", process_game1_asm },
     { NULL, NULL  }
 };

@@ -29,40 +29,44 @@
   peuvent être modifiés sans risque (sauvegardés par l'appelant).
 ***********************************************************************/
 
+
+
 .global process_game1_asm
 process_game1_asm:
-  push    rbp
-  mov     rbp, rsp
-  push    rdi
-  push    rsi
-  push    rdx
-  push    r12
-  push	  rbx
-  push    r14
-  push    r15
+        push    rbp
+        mov     rbp, rsp
+        push    rdi
+        push    rsi
+        push    rdx
+        push    r12
+        push    rbx
+        push    r14
+        push    r15
+        push    rcx
 
   /***********************************************************
     Ajoutez votre code ici
   **********************************************************/
+        mov     rax, rdi
+        imul    rax, rsi
 
+test_loop:
 
+        mov     byte ptr [rdx + rax * 4 + 0], 0xff
+        mov     byte ptr [rdx + rax * 4 + 1], 0x00
+        mov     byte ptr [rdx + rax * 4 + 2], 0x00
+        mov     byte ptr [rdx + rax * 4 + 3], 0xff
 
+        sub     rax, 1
+        ja      test_loop
 
-  pop   r15
-  pop   r14
-  pop   rbx
-  pop   r12
-  pop   rdx
-  pop   rsi
-  pop   rdi
-  pop   rbp
-  ret
-
-
-
-
-
-
-
-
-
+        pop     rcx
+        pop     r15
+        pop     r14
+        pop     rbx
+        pop     r12
+        pop     rdx
+        pop     rsi
+        pop     rdi
+        pop     rbp
+        ret

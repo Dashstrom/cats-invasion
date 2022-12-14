@@ -6,7 +6,7 @@ GTK_INC = $(shell $(PKGCONFIG) --cflags gtk+-3.0)
 GTK_LIB = $(shell $(PKGCONFIG) --libs gtk+-3.0)
 
 BINARY = tp_vintagegame
-C_SRCS = lib/main.c lib/utils.c
+C_SRCS = lib/main.c lib/process_game1_c.c lib/utils.c
 ASM_SRCS = src/process_game1_asm.S 
 
 OBJS = $(ASM_SRCS:.S=.o) $(C_SRCS:.c=.o)

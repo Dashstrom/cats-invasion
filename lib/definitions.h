@@ -29,6 +29,8 @@ struct game_elements	{
 	    uint32_t bounce;
 	} ;
 
+#define SPRITE_COUNT 1
+
 
 
 #endif

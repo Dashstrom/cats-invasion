@@ -47,6 +47,7 @@ process_game1_asm:
   /***********************************************************
     Ajoutez votre code ici
   **********************************************************/
+        # This portion computes the number of pixels in the image
         mov     bx, [rdi]
         movzx   rax, bx # uint16_t -> uint64_t
         mov     bx, [rsi]
@@ -64,6 +65,32 @@ test_loop:
 
         sub     rax, 1
         ja      test_loop
+
+        # Drawing the first sprite
+        # Save registers
+        push    rdi
+        push    rsi
+        push    rdx
+        push    rcx
+        push    r8
+        push    r9
+        # Call draw_sprite
+        add     rdi, 8
+        add     rsi, 8
+        mov     r9, rdx
+        add     rdx, 8
+        mov     rcx, 100
+        mov     r8, 100
+        # Call draw_sprite
+        call    draw_sprite
+        # Restore registers
+        pop     r9
+        pop     r8
+        pop     rcx
+        pop     rdx
+        pop     rsi
+        pop     rdi
+
 
         // pop     rcx
         pop     r15
@@ -108,10 +135,66 @@ draw_sprite:
   *     # Call draw_sprite
   *     call    draw_sprite
   *     # Restore registers
+  *     pop     r9
   *     pop     r8
   *     pop     rcx
   *     pop     rdx
   *     pop     rsi
   *     pop     rdi
   ***************/
-  
+        push    rbp
+        mov     rbp, rsp
+        # stack frame
+
+        # saving registers we will use as calculation registers
+        push    rax
+        push    rbx
+        push    r10
+        push    r11
+        push    r12
+
+        # This portion computes the number of pixels in the image
+        mov     bx, [rdi]
+        movzx   rax, bx # uint16_t -> uint64_t
+        mov     bx, [rsi]
+        movzx   r10, bx # uint16_t -> uint64_t
+        imul    rax, r10 # rax = width * height, multiply 2 64-bit integers 
+
+        # Computing offsets
+        # r11 will contain the start address on the destination
+        mov r11, rcx
+        mov r12, r8
+        mov r10, 4 # 4 bytes per pixel
+        imul r11, r10 # r12 = x_offset * 4
+        imul r12, rdi # r12 = y_offset * width
+        add r11, r12 # r11 = x_offset * 4 + y_offset * width
+
+        # add the offset to the destination data
+        add r9, r11 # r9 = destination_data + offset
+
+draw_sprite_loop:
+        # now we can draw the sprite
+        # rax contains the number of pixels in the sprite
+        # r9 contains the destination data
+        # rdx contains the sprite data
+        mov bl, [rdx + rax * 4 + 0]
+        mov byte ptr [r9 + rax * 4 + 0], bl # blue
+
+        mov bl, [rdx + rax * 4 + 1]
+        mov byte ptr [r9 + rax * 4 + 1], bl # green
+
+        mov bl, [rdx + rax * 4 + 2]
+        mov byte ptr [r9 + rax * 4 + 2], bl # red
+
+        mov bl, [rdx + rax * 4 + 3]
+        mov byte ptr [r9 + rax * 4 + 3], bl # alpha
+
+        sub     rax, 1
+        ja      draw_sprite_loop
+        
+        pop    r12
+        pop    r11
+        pop    r10
+        pop    rbx
+        pop    rax
+

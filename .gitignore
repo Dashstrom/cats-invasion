@@ -2,3 +2,6 @@
 tp_vintagegame
 *.exe
 build
+.vscode
+.project
+.cproject

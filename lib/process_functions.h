@@ -20,16 +20,17 @@
 
 #include <stdint.h>
 
-
-/* 
+/*
 
  Déclarations des fonctions de traitement
 
 */
-void process_game1_asm(uint16_t* img_width, uint16_t* img_height, uint8_t **img_src, void *Donnees_ptr);
-void process_game1_c(uint16_t* img_width, uint16_t img_height, uint8_t **img_src, void *Donnees_ptr);
+void process_game1_asm(uint16_t *img_width, uint16_t *img_height,
+                       uint8_t **img_src, void *Donnees_ptr);
+void process_game1_c(uint16_t *img_width, uint16_t *img_height,
+                     uint8_t **img_src, void *Donnees_ptr);
 
-void plot_balle(uint32_t x, uint32_t y, uint32_t img_width, uint8_t *img_src, uint32_t color);
-
+void plot_balle(uint32_t x, uint32_t y, uint32_t img_width, uint8_t *img_src,
+                uint32_t color);
 
 #endif

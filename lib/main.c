@@ -58,9 +58,9 @@ typedef struct _bitmap {
     GdkPixbuf *pixbuf;
 } bitmap_t;
 
-bitmap_t bitmaps[] = {{"../data/alien-explode.bmp", NULL},
-                      {"../data/group_3.bmp", NULL},
-                      {"../data/spaceship.bmp", NULL}};
+bitmap_t bitmaps[] = {{"data/cat-explode.bmp", NULL},
+                      {"data/projectile.bmp", NULL},
+                      {"data/spaceship.bmp", NULL}};
 
 /* Nombre de répétions à réaliser */
 int process_repetitions = 50000;

@@ -26,14 +26,14 @@
 
 void plot_balle(uint32_t x, uint32_t y, uint32_t img_width, uint8_t *img_src,
                 uint32_t color) {
-  uint32_t *ptr;
+    uint32_t *ptr;
 
-  for (int i = 0; i < TAILLEBALLE; i++)
-    for (int j = 0; j < TAILLEBALLE; j++) {
-      ptr = ((uint32_t *)img_src + (y + i) * img_width + (x + j));
-      // ptr = (uint32_t*)(img_src);
-      *ptr = color;
-    }
+    for (int i = 0; i < TAILLEBALLE; i++)
+        for (int j = 0; j < TAILLEBALLE; j++) {
+            ptr = ((uint32_t *)img_src + (y + i) * img_width + (x + j));
+            // ptr = (uint32_t*)(img_src);
+            *ptr = color;
+        }
 }
 
 /* process_image_c
@@ -43,63 +43,63 @@ void plot_balle(uint32_t x, uint32_t y, uint32_t img_width, uint8_t *img_src,
  */
 void process_game1_c(uint16_t *img_widths, uint16_t *img_heights,
                      uint8_t **img_srcs, void *Data) {
-  uint16_t img_width = img_widths[0];
-  uint16_t img_height = img_heights[0];
-  uint8_t *img_src = img_srcs[0];
+    uint16_t img_width = img_widths[0];
+    uint16_t img_height = img_heights[0];
+    uint8_t *img_src = img_srcs[0];
 
-  struct game_elements *elements_ptr;
+    struct game_elements *elements_ptr;
 
-  elements_ptr = (struct game_elements *)Data;
+    elements_ptr = (struct game_elements *)Data;
 
-  if (elements_ptr->flag_start == 0) {
-    elements_ptr->flag_start = 1;
-    elements_ptr->flag_stop = 0;
-    elements_ptr->x = 1;
-    elements_ptr->y = 1;
-    elements_ptr->var_x = 1;
-    elements_ptr->var_y = 1;
-    elements_ptr->color = 0xFF0F0F0F;
+    if (elements_ptr->flag_start == 0) {
+        elements_ptr->flag_start = 1;
+        elements_ptr->flag_stop = 0;
+        elements_ptr->x = 1;
+        elements_ptr->y = 1;
+        elements_ptr->var_x = 1;
+        elements_ptr->var_y = 1;
+        elements_ptr->color = 0xFF0F0F0F;
 
-  } else {
-    // attente pour fluidiser le déplacement
-    for (uint64_t j = 0; j < 1000000; ++j)
-      ;
+    } else {
+        // attente pour fluidiser le déplacement
+        for (uint64_t j = 0; j < 1000000; ++j)
+            ;
 
-    // conserver la balle dans la fenetre graphique
-    if (elements_ptr->x >= img_width - TAILLEBALLE) {
-      elements_ptr->var_x = -1;
-      elements_ptr->color = leftRotate(elements_ptr->color, 3);
-      elements_ptr->bounce++;
-    } else if (elements_ptr->x <= 0) {
-      elements_ptr->var_x = 1;
-      elements_ptr->color = leftRotate(elements_ptr->color, 3);
-      elements_ptr->bounce++;
+        // conserver la balle dans la fenetre graphique
+        if (elements_ptr->x >= img_width - TAILLEBALLE) {
+            elements_ptr->var_x = -1;
+            elements_ptr->color = leftRotate(elements_ptr->color, 3);
+            elements_ptr->bounce++;
+        } else if (elements_ptr->x <= 0) {
+            elements_ptr->var_x = 1;
+            elements_ptr->color = leftRotate(elements_ptr->color, 3);
+            elements_ptr->bounce++;
+        }
+        if (elements_ptr->y >= img_height - TAILLEBALLE) {
+            elements_ptr->var_y = -1;
+            elements_ptr->color = leftRotate(elements_ptr->color, 3);
+            elements_ptr->bounce++;
+        } else if (elements_ptr->y <= 0) {
+            elements_ptr->var_y = 1;
+            elements_ptr->color = leftRotate(elements_ptr->color, 3);
+            elements_ptr->bounce++;
+        }
+
+        // Effacer l'écran
+        plot_balle(elements_ptr->x, elements_ptr->y, img_width, img_src,
+                   0XFF000000);
+
+        // décaler les éléments
+        elements_ptr->x = elements_ptr->x + elements_ptr->var_x;
+        elements_ptr->y = elements_ptr->y + elements_ptr->var_y;
+        // elements_ptr->color = leftRotate(elements_ptr->color, 1);
+
+        // on trace les éléments aux nouveaux emplacements
+        plot_balle(elements_ptr->x, elements_ptr->y, img_width, img_src,
+                   elements_ptr->color | 0XFF000000);
+
+        if (elements_ptr->bounce >= 10) {
+            elements_ptr->flag_stop = 1;
+        }
     }
-    if (elements_ptr->y >= img_height - TAILLEBALLE) {
-      elements_ptr->var_y = -1;
-      elements_ptr->color = leftRotate(elements_ptr->color, 3);
-      elements_ptr->bounce++;
-    } else if (elements_ptr->y <= 0) {
-      elements_ptr->var_y = 1;
-      elements_ptr->color = leftRotate(elements_ptr->color, 3);
-      elements_ptr->bounce++;
-    }
-
-    // Effacer l'écran
-    plot_balle(elements_ptr->x, elements_ptr->y, img_width, img_src,
-               0XFF000000);
-
-    // décaler les éléments
-    elements_ptr->x = elements_ptr->x + elements_ptr->var_x;
-    elements_ptr->y = elements_ptr->y + elements_ptr->var_y;
-    // elements_ptr->color = leftRotate(elements_ptr->color, 1);
-
-    // on trace les éléments aux nouveaux emplacements
-    plot_balle(elements_ptr->x, elements_ptr->y, img_width, img_src,
-               elements_ptr->color | 0XFF000000);
-
-    if (elements_ptr->bounce >= 10) {
-      elements_ptr->flag_stop = 1;
-    }
-  }
 }

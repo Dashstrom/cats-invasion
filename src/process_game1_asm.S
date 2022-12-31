@@ -75,10 +75,11 @@ test_loop:
         push    r8
         push    r9
         # Call draw_sprite
-        add     rdi, 8
-        add     rsi, 8
-        mov     r9, rdx
-        add     rdx, 8
+        add     rdi, 2
+        add     rsi, 2
+        mov     r9, [rdx]
+        add     rdx, 8 # rdx = rdx + 8 because an address is 8 bytes long
+        mov     rdx, [rdx]
         mov     rcx, 100
         mov     r8, 100
         # Call draw_sprite
@@ -177,19 +178,19 @@ draw_sprite_loop:
         # rax contains the number of pixels in the sprite
         # r9 contains the destination data
         # rdx contains the sprite data
-        mov bl, [rdx + rax * 4 + 0]
-        mov byte ptr [r9 + rax * 4 + 0], bl # blue
+        mov bl, [rdx + rax]
+        mov byte ptr [r9 + rax], bl # blue
 
-        mov bl, [rdx + rax * 4 + 1]
-        mov byte ptr [r9 + rax * 4 + 1], bl # green
+        mov bl, [rdx + rax + 1]
+        mov byte ptr [r9 + rax + 1], bl # green
 
-        mov bl, [rdx + rax * 4 + 2]
-        mov byte ptr [r9 + rax * 4 + 2], bl # red
+        mov bl, [rdx + rax * 1 + 2]
+        mov byte ptr [r9 + rax * 1 + 2], bl # red
 
-        mov bl, [rdx + rax * 4 + 3]
-        mov byte ptr [r9 + rax * 4 + 3], bl # alpha
+        mov bl, [rdx + rax * 1 + 3]
+        mov byte ptr [r9 + rax * 1 + 3], bl # alpha
 
-        sub     rax, 1
+        sub     rax, 4
         ja      draw_sprite_loop
         
         pop    r12
@@ -197,4 +198,4 @@ draw_sprite_loop:
         pop    r10
         pop    rbx
         pop    rax
-
+        ret

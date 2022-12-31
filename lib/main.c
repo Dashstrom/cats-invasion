@@ -50,7 +50,7 @@ GtkWidget *image;
 int visible_image = 0;
 
 /* Buffers d'image */
-#define N_BITMAPS (1)
+#define N_BITMAPS (2)
 #define IMG_SRC (0)
 
 typedef struct _bitmap {
@@ -58,7 +58,8 @@ typedef struct _bitmap {
     GdkPixbuf *pixbuf;
 } bitmap_t;
 
-bitmap_t bitmaps[] = {{"data/cat-explode.bmp", NULL},
+bitmap_t bitmaps[] = {{"data/fond_noir.bmp", NULL},
+                      {"data/cat-explode.bmp", NULL},
                       {"data/projectile.bmp", NULL},
                       {"data/spaceship.bmp", NULL}};
 
@@ -147,24 +148,34 @@ void message_dialog(const gchar *title, GtkMessageType type,
  * Crée les bitmaps de travail en fonction de l'image source
  *
  */
-void setup_images(GdkPixbuf *source_image) {
-    if (bitmaps[0].pixbuf != NULL) {
-        g_object_unref(bitmaps[IMG_SRC].pixbuf);
-    }
+void setup_images() {
+    GError *error = NULL;
 
-    bitmaps[IMG_SRC].pixbuf = source_image;
+    int i = 0;
+    while (bitmaps[i].name != NULL && i < N_BITMAPS) {
+        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(bitmaps[i].name, &error);
+        /* Ajouter le canal alpha s'il n'est pas présent dans l'image */
+        if(error != NULL) {
+            message_dialog("Erreur", GTK_MESSAGE_ERROR,
+                           "Impossible de charger l'image %s: %s",
+                           bitmaps[i].name, error->message);
+            g_error_free(error);
+            error = NULL;
+            exit(1);
+        }
+        GdkPixbuf *pixbuf_with_alpha =
+            gdk_pixbuf_add_alpha(pixbuf, FALSE, 0, 0, 0);
+        GdkColorspace cs = gdk_pixbuf_get_colorspace(pixbuf_with_alpha);
+        int bps = gdk_pixbuf_get_bits_per_sample(pixbuf_with_alpha);
+        int w = gdk_pixbuf_get_width(pixbuf_with_alpha);
+        int h = gdk_pixbuf_get_height(pixbuf_with_alpha);
 
-    GdkColorspace cs = gdk_pixbuf_get_colorspace(source_image);
-    int bps = gdk_pixbuf_get_bits_per_sample(source_image);
-    int w = gdk_pixbuf_get_width(source_image);
-    int h = gdk_pixbuf_get_height(source_image);
-
-    int i = 1;
-    while (bitmaps[i].name != NULL) {
-        if (bitmaps[i].pixbuf != NULL) {
+        if (bitmaps[i].pixbuf != NULL && i < SPRITE_COUNT) {
             g_object_unref(bitmaps[i].pixbuf);
         }
-        bitmaps[i++].pixbuf = gdk_pixbuf_new(cs, TRUE, bps, w, h);
+        bitmaps[i].pixbuf = gdk_pixbuf_new_from_file_at_size(
+            bitmaps[i].name, w, h, &error);
+        i++;
     }
 }
 
@@ -188,7 +199,7 @@ void refresh_image() {
 void clear_images() {
     int i = 1;
     while (bitmaps[i].name != NULL) {
-        if (bitmaps[i].pixbuf != NULL) {
+        if (bitmaps[i].pixbuf != NULL && i < SPRITE_COUNT) {
             gdk_pixbuf_fill(bitmaps[i].pixbuf, 0xff);
         }
         i++;
@@ -221,22 +232,11 @@ void show_image(int i) {
 /* load_image
  * Charge une image. Retourne le pixbuf associé ou NULL en cas d'erreur
  */
-void load_source_image(const gchar *filename) {
-    GError *error = NULL;
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(filename, &error);
-
-    if (error != NULL) {
-        message_dialog("Erreur", GTK_MESSAGE_ERROR, "%s", error->message);
-    } else {
-        /* Ajouter le canal alpha s'il n'est pas présent dans l'image */
-        GdkPixbuf *pixbuf_with_alpha =
-            gdk_pixbuf_add_alpha(pixbuf, FALSE, 0, 0, 0);
-        setup_images(pixbuf_with_alpha);
-        clear_images();
-        show_image(IMG_SRC);
-        gtk_window_resize(GTK_WINDOW(main_window), 1, 1);
-        g_object_unref(pixbuf);
-    }
+void load_source_image() {
+    setup_images();
+    show_image(IMG_SRC);
+    // clear_images();
+    gtk_window_resize(GTK_WINDOW(main_window), 1, 1);
 }
 
 /* run_processing_task
@@ -271,10 +271,10 @@ void run_processing_task(const gchar *target, int showtime) {
     for (i = 0; i < SPRITE_COUNT + 1; ++i) {
         widths[i] = gdk_pixbuf_get_width(bitmaps[i].pixbuf);
         heights[i] = gdk_pixbuf_get_height(bitmaps[i].pixbuf);
-        if (bitmaps[i].pixbuf == NULL) {
-            bitmaps[i].pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8,
-                                               widths[i], heights[i]);
-        }
+        // if (bitmaps[i].pixbuf == NULL) {
+        //     bitmaps[i].pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8,
+        //                                        widths[i], heights[i]);
+        // }
         images_pointers_to_array[i] = gdk_pixbuf_get_pixels(bitmaps[i].pixbuf);
     }
 
@@ -410,7 +410,7 @@ static void activate(GApplication *app) {
     gtk_widget_show_all(main_window);
 
     /* Charger l'image initiale */
-    load_source_image(default_image);
+    load_source_image();
 }
 
 /* shutdown

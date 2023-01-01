@@ -59,7 +59,7 @@ typedef struct _bitmap {
 } bitmap_t;
 
 bitmap_t bitmaps[] = {{"data/fond_noir.bmp", NULL},
-                      {"data/cat-explode.bmp", NULL},
+                      {"data/cat-explode-150x150.bmp", NULL},
                       {"data/projectile.bmp", NULL},
                       {"data/spaceship.bmp", NULL}};
 

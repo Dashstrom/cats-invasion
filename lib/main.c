@@ -150,7 +150,6 @@ void message_dialog(const gchar *title, GtkMessageType type,
  */
 void setup_images() {
     GError *error = NULL;
-
     int i = 0;
     while (bitmaps[i].name != NULL && i < N_BITMAPS) {
         GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(bitmaps[i].name, &error);
@@ -165,16 +164,10 @@ void setup_images() {
         }
         GdkPixbuf *pixbuf_with_alpha =
             gdk_pixbuf_add_alpha(pixbuf, FALSE, 0, 0, 0);
-        GdkColorspace cs = gdk_pixbuf_get_colorspace(pixbuf_with_alpha);
-        int bps = gdk_pixbuf_get_bits_per_sample(pixbuf_with_alpha);
-        int w = gdk_pixbuf_get_width(pixbuf_with_alpha);
-        int h = gdk_pixbuf_get_height(pixbuf_with_alpha);
-
         if (bitmaps[i].pixbuf != NULL && i < SPRITE_COUNT) {
             g_object_unref(bitmaps[i].pixbuf);
         }
-        bitmaps[i].pixbuf = gdk_pixbuf_new_from_file_at_size(
-            bitmaps[i].name, w, h, &error);
+        bitmaps[i].pixbuf = pixbuf_with_alpha;
         i++;
     }
 }

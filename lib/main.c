@@ -258,14 +258,10 @@ void run_processing_task(const gchar *target, int showtime) {
     // int h = gdk_pixbuf_get_height(bitmaps[IMG_SRC].pixbuf);
 
     // those are the width and height of the source image
-    uint16_t *widths =
-        malloc(sizeof(int16_t) * SPRITE_COUNT);  // this is the array of widths
-    uint16_t *heights =
-        malloc(sizeof(int16_t) * SPRITE_COUNT);  // this is the array of heights
+    uint16_t widths[SPRITE_COUNT + 1];
+    uint16_t  heights[SPRITE_COUNT + 1];
     // This is the array of pointers to the images
-    uint8_t **images_pointers_to_array =
-        malloc(sizeof(int8_t *) * SPRITE_COUNT +
-               1);  // this is the array of pointers to the images
+    uint8_t *images_pointers_to_array[SPRITE_COUNT + 1];
 
     size_t i;
     for (i = 0; i < SPRITE_COUNT + 1; ++i) {

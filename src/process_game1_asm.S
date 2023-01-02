@@ -36,11 +36,40 @@ process_game1_asm:
         push    rbp
         mov     rbp, rsp
 
-        # Drawing the first sprite at 30,30
-        mov     r8, 30
-        mov     r9, 30
-        mov     r10, 1
-        # Call draw_sprite
+        # Drawing the void
+        mov     r8, 0
+        mov     r9, 0
+        mov     r10, 2
+        call    draw_sprite
+
+        # Drawing the cat at 10,10
+        mov     r8, 10
+        mov     r9, 10
+        mov     r10, 3
+        call    draw_sprite
+
+        # Drawing the cat-explode
+        mov     r8, 74
+        mov     r9, 10
+        mov     r10, 4
+        call    draw_sprite
+
+        # Drawing the food
+        mov     r8, 138
+        mov     r9, 10
+        mov     r10, 5
+        call    draw_sprite
+
+        # Drawing the spaceship
+        mov     r8, 160
+        mov     r9, 10
+        mov     r10, 6
+        call    draw_sprite
+
+        # Drawing the kennel
+        mov     r8, 300
+        mov     r9, 10
+        mov     r10, 7
         call    draw_sprite
 
         mov     rsp, rbp
@@ -106,40 +135,59 @@ copy_sprite__for_y_in_range_height:
         dec     r13
 
 copy_sprite__for_x_in_range_width:
+   
 
         /*
         index_image = (offY + Y) * bg_width + offX + X
         rbx = (r9 + r11) * rdi + r8 + r13
+        Make check about size at same moment
         */
         mov     rbx, r9
         add     rbx, r11
         imul    rbx, rdi
         add     rbx, r8
         add     rbx, r13
+        imul    rbx, 4
+        add     rbx, rdx
 
         /*
         index_sprite = Y * width + X
-        r15 = r11 * r10 + r13
+        r14 = r11 * r10 + r13
         */
-        mov     r15, r11
-        imul    r15, r10
-        add     r15, r13
+        mov     r14, r11
+        imul    r14, r10
+        add     r14, r13
+        imul    r14, 4
+        add     r14, r12
 
-        /* Copy red */
-        mov     al, byte ptr [r12 + r15 * 4]
-        mov     byte ptr [rdx + rbx * 4], al
+        /* Load alpha */
+        mov     r15b, byte ptr [r14 + 3]
+        mov     cl, 0xff
+        sub     cl, r15b
 
-        /* Copy green */
-        mov     al, byte ptr [r12 + r15 * 4 + 1]
-        mov     byte ptr [rdx + rbx * 4 + 1], al
+        /* Compute red with alpha */
+        mov     al, byte ptr [r14]
+        mul     r15b
+        mov     al, byte ptr [rbx]
+        mov     byte ptr [rbx], ah
+        mul     cl
+        add     byte ptr [rbx], ah
 
-        /* Copy blue */
-        mov     al, byte ptr [r12 + r15 * 4 + 2]
-        mov     byte ptr [rdx + rbx * 4 + 2], al
+        /* Compute green with alpha */
+        mov     al, byte ptr [r14 + 1]
+        mul     r15b
+        mov     al, byte ptr [rbx + 1]
+        mov     byte ptr [rbx + 1], ah
+        mul     cl
+        add     byte ptr [rbx + 1], ah
 
-        /* Copy alpha */
-        mov     al, byte ptr [r12 + r15 * 4 + 3]
-        mov     byte ptr [rdx + rbx * 4 + 3], al
+        /* Compute blue with alpha */
+        mov     al, byte ptr [r14 + 2]
+        mul     r15b
+        mov     al, byte ptr [rbx + 2]
+        mov     byte ptr [rbx + 2], ah
+        mul     cl
+        add     byte ptr [rbx + 2], ah
 
         sub     r13, 1
         jae     copy_sprite__for_x_in_range_width

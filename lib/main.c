@@ -38,7 +38,7 @@
 const gchar application_name[] = "space-invaders-asm";
 
 /* Chemin de l'image par défaut */
-const gchar default_image[] = "data/fond_noir.bmp";
+const gchar default_image[] = "data/base.bmp";
 
 /* Pointeur vers la fenêtre pricipale de l'application */
 GtkWidget *main_window;
@@ -50,23 +50,31 @@ GtkWidget *image;
 int visible_image = 0;
 
 /* Buffers d'image */
-#define N_BITMAPS (1)
+#define N_BITMAPS (8)
 #define IMG_SRC (0)
 
-typedef struct _bitmap {
+typedef struct _bitmap
+{
     gchar *name;
     GdkPixbuf *pixbuf;
 } bitmap_t;
 
-bitmap_t bitmaps[] = {{"../data/alien-explode.bmp", NULL},
-                      {"../data/group_3.bmp", NULL},
-                      {"../data/spaceship.bmp", NULL}};
+bitmap_t bitmaps[] = {{"data/base.bmp", NULL},
+                      {"data/debug.bmp", NULL},
+                      {"data/void.bmp", NULL},
+                      {"data/cat.png", NULL},
+                      {"data/cat-explode.png", NULL},
+                      {"data/projectile.png", NULL},
+                      {"data/spaceship.png", NULL},
+                      {"data/kennel.png", NULL},
+                      {NULL, NULL}};
 
 /* Nombre de répétions à réaliser */
 int process_repetitions = 50000;
 
 /* Map des fonctions de traitement */
-typedef struct _process_task {
+typedef struct _process_task
+{
     gchar *target;
     void (*process_fun)(uint16_t *, uint16_t *, uint8_t **, void *);
 } process_task_t;
@@ -89,7 +97,8 @@ void *Donnees_ptr;
  * La chaine retournée doit être libérée avec g_free.
  *
  */
-gchar *file_chooser() {
+gchar *file_chooser()
+{
     GtkWidget *dialog = gtk_file_chooser_dialog_new(
         "Choisissez une image", GTK_WINDOW(main_window),
         GTK_FILE_CHOOSER_ACTION_OPEN, "Ouvrir", GTK_RESPONSE_ACCEPT, "Annuler",
@@ -109,7 +118,8 @@ gchar *file_chooser() {
     gint response = gtk_dialog_run(GTK_DIALOG(dialog));
 
     gchar *filename = NULL;
-    if (response == GTK_RESPONSE_ACCEPT) {
+    if (response == GTK_RESPONSE_ACCEPT)
+    {
         filename = gtk_file_chooser_get_filename(GTK_FILE_CHOOSER(dialog));
     }
 
@@ -121,7 +131,8 @@ gchar *file_chooser() {
  * Affiche un message simple.
  */
 void message_dialog(const gchar *title, GtkMessageType type,
-                    const gchar *format, ...) {
+                    const gchar *format, ...)
+{
     va_list ap;
 
     va_start(ap, format);
@@ -147,24 +158,31 @@ void message_dialog(const gchar *title, GtkMessageType type,
  * Crée les bitmaps de travail en fonction de l'image source
  *
  */
-void setup_images(GdkPixbuf *source_image) {
-    if (bitmaps[0].pixbuf != NULL) {
-        g_object_unref(bitmaps[IMG_SRC].pixbuf);
-    }
-
-    bitmaps[IMG_SRC].pixbuf = source_image;
-
-    GdkColorspace cs = gdk_pixbuf_get_colorspace(source_image);
-    int bps = gdk_pixbuf_get_bits_per_sample(source_image);
-    int w = gdk_pixbuf_get_width(source_image);
-    int h = gdk_pixbuf_get_height(source_image);
-
-    int i = 1;
-    while (bitmaps[i].name != NULL) {
-        if (bitmaps[i].pixbuf != NULL) {
+void setup_images()
+{
+    GError *error = NULL;
+    int i = 0;
+    while (bitmaps[i].name != NULL && i < N_BITMAPS)
+    {
+        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(bitmaps[i].name, &error);
+        /* Ajouter le canal alpha s'il n'est pas présent dans l'image */
+        if (error != NULL)
+        {
+            message_dialog("Erreur", GTK_MESSAGE_ERROR,
+                           "Impossible de charger l'image %s: %s",
+                           bitmaps[i].name, error->message);
+            g_error_free(error);
+            error = NULL;
+            exit(1);
+        }
+        GdkPixbuf *pixbuf_with_alpha =
+            gdk_pixbuf_add_alpha(pixbuf, FALSE, 0, 0, 0);
+        if (bitmaps[i].pixbuf != NULL && i < N_BITMAPS)
+        {
             g_object_unref(bitmaps[i].pixbuf);
         }
-        bitmaps[i++].pixbuf = gdk_pixbuf_new(cs, TRUE, bps, w, h);
+        bitmaps[i].pixbuf = pixbuf_with_alpha;
+        i++;
     }
 }
 
@@ -173,8 +191,10 @@ void setup_images(GdkPixbuf *source_image) {
  * Rafraîchit l'image courante
  *
  */
-void refresh_image() {
-    if (bitmaps[visible_image].pixbuf != NULL) {
+void refresh_image()
+{
+    if (bitmaps[visible_image].pixbuf != NULL)
+    {
         gtk_image_set_from_pixbuf(GTK_IMAGE(image),
                                   bitmaps[visible_image].pixbuf);
     }
@@ -185,10 +205,13 @@ void refresh_image() {
  * Efface les images de travail
  *
  */
-void clear_images() {
+void clear_images()
+{
     int i = 1;
-    while (bitmaps[i].name != NULL) {
-        if (bitmaps[i].pixbuf != NULL) {
+    while (bitmaps[i].name != NULL)
+    {
+        if (bitmaps[i].pixbuf != NULL && i < SPRITE_COUNT)
+        {
             gdk_pixbuf_fill(bitmaps[i].pixbuf, 0xff);
         }
         i++;
@@ -203,8 +226,10 @@ void clear_images() {
  * Affiche une image de travail
  *
  */
-void show_image(int i) {
-    if (i >= 0) {
+void show_image(int i)
+{
+    if (i >= 0)
+    {
         visible_image = i;
     }
 
@@ -221,22 +246,12 @@ void show_image(int i) {
 /* load_image
  * Charge une image. Retourne le pixbuf associé ou NULL en cas d'erreur
  */
-void load_source_image(const gchar *filename) {
-    GError *error = NULL;
-    GdkPixbuf *pixbuf = gdk_pixbuf_new_from_file(filename, &error);
-
-    if (error != NULL) {
-        message_dialog("Erreur", GTK_MESSAGE_ERROR, "%s", error->message);
-    } else {
-        /* Ajouter le canal alpha s'il n'est pas présent dans l'image */
-        GdkPixbuf *pixbuf_with_alpha =
-            gdk_pixbuf_add_alpha(pixbuf, FALSE, 0, 0, 0);
-        setup_images(pixbuf_with_alpha);
-        clear_images();
-        show_image(IMG_SRC);
-        gtk_window_resize(GTK_WINDOW(main_window), 1, 1);
-        g_object_unref(pixbuf);
-    }
+void load_source_image()
+{
+    setup_images();
+    show_image(IMG_SRC);
+    // clear_images();
+    gtk_window_resize(GTK_WINDOW(main_window), 1, 1);
 }
 
 /* run_processing_task
@@ -244,10 +259,12 @@ void load_source_image(const gchar *filename) {
  * Réalise le traitement dont le nom est passé en paramètre.
  *
  */
-void run_processing_task(const gchar *target, int showtime) {
+void run_processing_task(const gchar *target, int showtime)
+{
     struct game_elements *elements_ptr = (struct game_elements *)Donnees_ptr;
 
-    if (bitmaps[IMG_SRC].pixbuf == NULL) {
+    if (bitmaps[IMG_SRC].pixbuf == NULL)
+    {
         message_dialog("Avertissement", GTK_MESSAGE_WARNING,
                        "Pas d'image chargée");
         return;
@@ -258,28 +275,25 @@ void run_processing_task(const gchar *target, int showtime) {
     // int h = gdk_pixbuf_get_height(bitmaps[IMG_SRC].pixbuf);
 
     // those are the width and height of the source image
-    uint16_t *widths =
-        malloc(sizeof(int16_t) * SPRITE_COUNT);  // this is the array of widths
-    uint16_t *heights =
-        malloc(sizeof(int16_t) * SPRITE_COUNT);  // this is the array of heights
+    uint16_t widths[SPRITE_COUNT + 1];
+    uint16_t heights[SPRITE_COUNT + 1];
     // This is the array of pointers to the images
-    uint8_t **images_pointers_to_array =
-        malloc(sizeof(int8_t *) * SPRITE_COUNT +
-               1);  // this is the array of pointers to the images
+    uint8_t *images_pointers_to_array[SPRITE_COUNT + 1];
 
     size_t i;
-    for (i = 0; i < SPRITE_COUNT + 1; ++i) {
+    for (i = 0; i < SPRITE_COUNT + 1; ++i)
+    {
         widths[i] = gdk_pixbuf_get_width(bitmaps[i].pixbuf);
         heights[i] = gdk_pixbuf_get_height(bitmaps[i].pixbuf);
-        if (bitmaps[i].pixbuf == NULL) {
-            bitmaps[i].pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8,
-                                               widths[i], heights[i]);
-        }
+        // if (bitmaps[i].pixbuf == NULL) {
+        //     bitmaps[i].pixbuf = gdk_pixbuf_new(GDK_COLORSPACE_RGB, TRUE, 8,
+        //                                        widths[i], heights[i]);
+        // }
         images_pointers_to_array[i] = gdk_pixbuf_get_pixels(bitmaps[i].pixbuf);
     }
 
     /* Effacer les images */
-    clear_images();
+    // clear_images();
 
     /* Récupérer les buffers d'image de chaque bitmap */
     // uint8_t *pixels[N_BITMAPS];
@@ -289,20 +303,22 @@ void run_processing_task(const gchar *target, int showtime) {
 
     /* Trouver la fonction de traitement à appeler en fonction de la cible */
     int task_nr = 0;
-    do {
-        if (strcmp(process_tasks[task_nr].target, target) == 0) break;
+    do
+    {
+        if (strcmp(process_tasks[task_nr].target, target) == 0)
+            break;
     } while (process_tasks[++task_nr].target != NULL);
 
     /* Réaliser le traitement */
     clock_t start = clock();
     elements_ptr->flag_stop = 0;
-    while (elements_ptr->flag_stop == 0) {
-        if (process_tasks[task_nr].process_fun != NULL) {
+    while (elements_ptr->flag_stop == 0)
+    {
+        if (process_tasks[task_nr].process_fun != NULL)
+        {
             process_tasks[task_nr].process_fun(
                 widths, heights, images_pointers_to_array,
-                Donnees_ptr);  // TODO: This is where we will pass
-                               // the data to the processing function
-
+                Donnees_ptr);
             /* Rafraîchir l'image affichée */
             refresh_image();
             /* forcer l'affichage de la nouvelle image dans la fenêtre */
@@ -312,7 +328,8 @@ void run_processing_task(const gchar *target, int showtime) {
     elements_ptr->flag_stop = 0;
     clock_t end = clock();
 
-    if (showtime) {
+    if (showtime)
+    {
         // Afficher le temps écoulé
         double elapsed = (double)(end - start) / CLOCKS_PER_SEC;
 
@@ -370,7 +387,8 @@ static const gchar ui_info[] =
  * Appelé à la création de l'application
  *
  */
-static void startup(GApplication *app) {
+static void startup(GApplication *app)
+{
     Donnees_ptr = malloc(500);
     uint32_t *ptr;
 
@@ -393,7 +411,8 @@ static void startup(GApplication *app) {
  * Appelée à l'activation de l'application
  *
  */
-static void activate(GApplication *app) {
+static void activate(GApplication *app)
+{
     /* Créer la fenêtre principale */
     main_window = gtk_application_window_new(GTK_APPLICATION(app));
     gtk_window_set_default_size(GTK_WINDOW(main_window), 400, 600);
@@ -410,7 +429,7 @@ static void activate(GApplication *app) {
     gtk_widget_show_all(main_window);
 
     /* Charger l'image initiale */
-    load_source_image(default_image);
+    load_source_image();
 }
 
 /* shutdown
@@ -418,13 +437,16 @@ static void activate(GApplication *app) {
  * Appelée à la fermeture de l'application
  *
  */
-static void shutdown(GApplication *app) {
+static void shutdown(GApplication *app)
+{
     free(Donnees_ptr);
 
     /* Supprimer les images */
     int i = 0;
-    while (bitmaps[i].name != NULL) {
-        if (bitmaps[i].pixbuf != NULL) {
+    while (bitmaps[i].name != NULL)
+    {
+        if (bitmaps[i].pixbuf != NULL)
+        {
             g_object_unref(bitmaps[i].pixbuf);
         }
         i++;
@@ -437,10 +459,12 @@ static void shutdown(GApplication *app) {
  *
  */
 static void activate_open(GSimpleAction *action, GVariant *parameter,
-                          gpointer user_data) {
+                          gpointer user_data)
+{
     gchar *filename = file_chooser();
 
-    if (filename != NULL) {
+    if (filename != NULL)
+    {
         load_source_image(filename);
         g_free(filename);
     }
@@ -452,7 +476,8 @@ static void activate_open(GSimpleAction *action, GVariant *parameter,
  *
  */
 static void activate_quit(GSimpleAction *action, GVariant *parameter,
-                          gpointer user_data) {
+                          gpointer user_data)
+{
     g_application_quit(G_APPLICATION(user_data));
 }
 
@@ -462,7 +487,8 @@ static void activate_quit(GSimpleAction *action, GVariant *parameter,
  *
  */
 static void activate_view(GSimpleAction *action, GVariant *parameter,
-                          gpointer user_data) {
+                          gpointer user_data)
+{
     const gchar *target = g_variant_get_string(parameter, NULL);
 
     show_image(atoi(target));
@@ -474,7 +500,8 @@ static void activate_view(GSimpleAction *action, GVariant *parameter,
  *
  */
 static void activate_process(GSimpleAction *action, GVariant *parameter,
-                             gpointer user_data) {
+                             gpointer user_data)
+{
     const gchar *target = g_variant_get_string(parameter, NULL);
 
     run_processing_task(target, 1);
@@ -498,7 +525,8 @@ static GActionEntry app_entries[] = {
  * Fonction principale appelée au démarrage du programme
  *
  */
-int main(int argc, char *argv[]) {
+int main(int argc, char *argv[])
+{
     GtkApplication *app = gtk_application_new("fr.utc.mi01.atelier-photo", 0);
 
     g_action_map_add_action_entries(G_ACTION_MAP(app), app_entries,

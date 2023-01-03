@@ -323,8 +323,6 @@ void run_processing_task(const gchar *target, int showtime)
             refresh_image();
             /* forcer l'affichage de la nouvelle image dans la fenêtre */
             gtk_main_iteration();
-
-            message_dialog("Wait", GTK_MESSAGE_INFO, "continue ?");
         }
     }
     elements_ptr->flag_stop = 0;

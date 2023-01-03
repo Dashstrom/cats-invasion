@@ -36,6 +36,32 @@ process_game1_asm:
         push    rbp
         mov     rbp, rsp
 
+        # Check if init
+        mov     r8b, byte ptr [rcx]
+        cmp     r8b, 0
+        jne     already_initialize
+
+        mov     byte ptr [rcx], 1
+        mov     qword ptr [rcx + 1], 400
+        mov     qword ptr [rcx + 9], 1
+
+already_initialize:
+
+        cmp     qword ptr [rcx + 1], 726
+        jb      not_change
+        mov   qword ptr [rcx + 9], -1
+not_change:
+
+        cmp     qword ptr [rcx + 1], 4
+        ja      not_change2
+        mov     qword ptr [rcx + 9], 1
+not_change2:
+
+        mov     r8, qword ptr [rcx + 9]
+        add     qword ptr [rcx + 1], r8
+
+        # Update sprite
+
         # Drawing the void
         mov     r8, 0
         mov     r9, 0
@@ -61,8 +87,8 @@ process_game1_asm:
         call    draw_sprite
 
         # Drawing the spaceship
-        mov     r8, 160
-        mov     r9, 10
+        mov     r8, qword ptr [rcx + 1]
+        mov     r9, 526
         mov     r10, 6
         call    draw_sprite
 
@@ -72,10 +98,34 @@ process_game1_asm:
         mov     r10, 7
         call    draw_sprite
 
+        # Sleep
+        mov     r8, 1000000
+        call    sleep
+
         mov     rsp, rbp
         pop     rbp
         ret
         # End of process_image_asm
+
+
+sleep:
+ /***************
+  * Sleep time
+  * Needed registers :
+  *      r8  : nanoseonds
+  ***************/
+        push    rbp
+        mov     rbp, rsp
+        push    r8
+loop_sleep:
+        sub     r8, 1
+        jae     loop_sleep
+
+        pop     r8
+        mov     rsp, rbp
+        pop     rbp
+        ret
+
 
 
 

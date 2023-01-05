@@ -5,3 +5,4 @@ build
 .vscode
 .project
 .cproject
+src/resources.c

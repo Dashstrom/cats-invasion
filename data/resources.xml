@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gresources>
+    <gresource prefix="sprites">
+        <file>data/images/base.bmp</file>
+        <file>data/images/debug.bmp</file>
+        <file>data/images/void.bmp</file>
+        <file>data/images/cat.png</file>
+        <file>data/images/cat-explode.png</file>
+        <file>data/images/food.png</file>
+        <file>data/images/spaceship1.png</file>
+        <file>data/images/spaceship2.png</file>
+        <file>data/images/kennel1.png</file>
+        <file>data/images/kennel2.png</file>
+        <file>data/images/kennel3.png</file>
+        <file>data/images/kennel4.png</file>
+        <file>data/images/mouse.png</file>
+        <file>data/images/heart.png</file>
+        <file>data/images/empty_heart.png</file>
+    </gresource>
+</gresources>

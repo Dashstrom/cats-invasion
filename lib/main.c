@@ -50,7 +50,7 @@ GtkWidget *image;
 int visible_image = 0;
 
 /* Buffers d'image */
-#define N_BITMAPS (8)
+#define N_BITMAPS (13)
 #define IMG_SRC (0)
 
 typedef struct _bitmap
@@ -64,9 +64,14 @@ bitmap_t bitmaps[] = {{"data/base.bmp", NULL},
                       {"data/void.bmp", NULL},
                       {"data/cat.png", NULL},
                       {"data/cat-explode.png", NULL},
-                      {"data/projectile.png", NULL},
-                      {"data/spaceship.png", NULL},
-                      {"data/kennel.png", NULL},
+                      {"data/food.png", NULL},
+                      {"data/spaceship1.png", NULL},
+                      {"data/spaceship2.png", NULL},
+                      {"data/kennel4.png", NULL},
+                      {"data/kennel3.png", NULL},
+                      {"data/kennel2.png", NULL},
+                      {"data/kennel1.png", NULL},
+                      {"data/mouse.png", NULL},
                       {NULL, NULL}};
 
 /* Nombre de répétions à réaliser */
@@ -389,7 +394,7 @@ static const gchar ui_info[] =
  */
 static void startup(GApplication *app)
 {
-    Donnees_ptr = malloc(500);
+    Donnees_ptr = malloc(500000);
     uint32_t *ptr;
 
     ptr = (uint32_t *)Donnees_ptr;

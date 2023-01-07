@@ -16,5 +16,6 @@
         <file>data/images/mouse.png</file>
         <file>data/images/heart.png</file>
         <file>data/images/empty_heart.png</file>
+        <file>data/images/gameover.png</file>
     </gresource>
 </gresources>

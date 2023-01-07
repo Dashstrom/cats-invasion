@@ -8,18 +8,23 @@
 #include <time.h>
 
 /* App settings */
-#define SPRITE_COUNT 15
+#define SPRITE_COUNT 16
 #define BACKGROUD_INDEX 0
 #define ICON_INDEX 7
 #define APP_NAME "Space Invaders"
 #define APP_WIDTH 800
 #define APP_HEIGHT 600
 #define APP_MEMORY 32000
-#define FPS_MAX 10
+#define FPS_MAX 60
 #define IMAGE_PATH "/sprites/data/images/"
 
 /* Pointer to the memory area */
 void *memory;
+
+/* Pointers to image data */
+uint16_t widths[SPRITE_COUNT];
+uint16_t heights[SPRITE_COUNT];
+uint8_t *pixels[SPRITE_COUNT];
 
 /* Main window of application */
 GtkWidget *main_window;
@@ -46,7 +51,8 @@ image_t images[] = {{IMAGE_PATH "base.bmp", NULL},
                     {IMAGE_PATH "kennel1.png", NULL},
                     {IMAGE_PATH "mouse.png", NULL},
                     {IMAGE_PATH "heart.png", NULL},
-                    {IMAGE_PATH "empty_heart.png", NULL}};
+                    {IMAGE_PATH "empty_heart.png", NULL},
+                    {IMAGE_PATH "gameover.png", NULL}};
 
 /* 0 If all is OK else 1 when application is destroying the main window */
 gboolean is_shutting_down = 0;
@@ -74,7 +80,7 @@ void message_dialog(const gchar *title, GtkMessageType type,
     g_free(message);
 }
 
-/* Load all images from filesystem */
+/* Load all images from resources */
 void setup_images()
 {
     GError *error = NULL;
@@ -91,62 +97,22 @@ void setup_images()
             exit(1);
         }
         images[i].pixbuf = gdk_pixbuf_add_alpha(pixbuf, FALSE, 0, 0, 0);
-    }
-}
-
-/* Refresh background image */
-void refresh_image()
-{
-    if (images[BACKGROUD_INDEX].pixbuf != NULL && !is_shutting_down)
-    {
-        gtk_image_set_from_pixbuf(GTK_IMAGE(image), images[BACKGROUD_INDEX].pixbuf);
-    }
-}
-
-/* Get time in nanoseconds */
-long long nanotime()
-{
-    struct timeval tv;
-    gettimeofday(&tv, NULL);
-    return 1000000 * tv.tv_sec + tv.tv_usec;
-}
-
-/* Run update from assembly function */
-void run_update_loop()
-{
-    if (images[BACKGROUD_INDEX].pixbuf == NULL)
-    {
-        message_dialog("Avertissement", GTK_MESSAGE_WARNING, "Pas d'image chargée");
-        return;
-    }
-
-    uint16_t widths[SPRITE_COUNT];
-    uint16_t heights[SPRITE_COUNT];
-    uint8_t *pixels[SPRITE_COUNT];
-
-    for (size_t i = 0; i < SPRITE_COUNT; ++i)
-    {
         widths[i] = gdk_pixbuf_get_width(images[i].pixbuf);
         heights[i] = gdk_pixbuf_get_height(images[i].pixbuf);
         pixels[i] = gdk_pixbuf_get_pixels(images[i].pixbuf);
     }
+}
 
-    /* Run assembly function in loop */
-    long long start, end, delay = 0;
-    while (!is_shutting_down)
+/* Wrapper for update loop in assembly */
+void update_loop()
+{
+    if (!is_shutting_down)
     {
-        start = nanotime();
+        g_timeout_add(1000 / FPS_MAX, (GSourceFunc)update_loop, NULL);
         update(widths, heights, pixels, memory);
-        refresh_image();
+        gtk_image_set_from_pixbuf(GTK_IMAGE(image), images[BACKGROUD_INDEX].pixbuf);
         while (gtk_events_pending())
             gtk_main_iteration_do(FALSE);
-        end = nanotime();
-        delay -= (end - start) - (1000000 / FPS_MAX);
-        if (delay > 0)
-        {
-            usleep(delay);
-            delay = 0;
-        }
     }
 }
 
@@ -187,17 +153,14 @@ static void activate(GApplication *app)
     /* Load all images */
     setup_images();
 
-    /* Reload background */
-    refresh_image();
-
-    /* Resive window */
+    /* Resive window to image size */
     gtk_window_resize(GTK_WINDOW(main_window), 1, 1);
 
     /* Set  the icon */
     gtk_window_set_icon(GTK_WINDOW(main_window), images[ICON_INDEX].pixbuf);
 
     /* Run mainloop */
-    run_update_loop();
+    update_loop();
 }
 
 /* Entry point */

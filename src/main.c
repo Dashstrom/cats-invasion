@@ -15,7 +15,7 @@
 #define APP_WIDTH 800
 #define APP_HEIGHT 600
 #define APP_MEMORY 32000
-#define FPS_MAX 60
+#define FPS_MAX 13
 #define IMAGE_PATH "/sprites/data/images/"
 
 /* Pointer to the memory area */

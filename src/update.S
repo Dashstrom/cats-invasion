@@ -4,7 +4,7 @@
 .data
 
 /* Configuration */
-DEFAULT_SEED = 168168761
+DEFAULT_SEED = 625726124
 CAT_SHOT_INTERVAL = 0x1ff
 CAT_SHOT_SPEED = 16
 PADDING_X = 8
@@ -13,7 +13,7 @@ CAT_LINES = 5
 CAT_COLUMNS = 12
 CAT_SPACE_X = 46
 CAT_SPACE_Y = 54
-SPACESHIP_SPEED = 2
+SPACESHIP_SPEED = 6
 SPACESHIP_SHOT_SPEED = 32
 SPACESHIP_SHOT_INTERVAL = 16
 SPACESHIP_LIFE = 3
@@ -100,9 +100,12 @@ update:
         push    rbp
         mov     rbp, rsp
 
+
 /***********************************************************************
   Save registers
 ***********************************************************************/
+
+_save_registers:
         push    rdi
         push    rsi
         push    rax
@@ -118,17 +121,23 @@ update:
         push    r14
         push    r15
 
+
+/***********************************************************************
+  Initialization
+***********************************************************************/
+
+_initialization:
         /* Check if init */
         mov     r8, qword ptr [rcx + ADDR_START]
         cmp     r8, 0
-        jne     _already_initialized
+        jne     _initialization__end
 
         /* Initialization */
         mov     qword ptr [rcx + ADDR_START], 1
         mov     qword ptr [rcx + ADDR_STOP], 0
         mov     qword ptr [rcx + ADDR_SEED], DEFAULT_SEED
-        mov     byte ptr [rcx + ADDR_MOVE_LEFT], 0
-        mov     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
+        mov     byte ptr [rcx + ADDR_MOVE_LEFT], 1
+        mov     byte ptr [rcx + ADDR_MOVE_RIGHT], 1
         mov     byte ptr [rcx + ADDR_SHOOT], 1
         mov     qword ptr [rcx + ADDR_SPRITE_COUNT], 0
         mov     qword ptr [rcx + ADDR_TICK], 0
@@ -137,7 +146,7 @@ update:
         mov     byte ptr [rcx + ADDR_CATS_DOWN], 0
 
         /* Create spaceship */
-        mov     r9, 364
+        mov     r9, 364                 # x
         mov     r10, 528                # y
         mov     r11, SPACESHIP1_IMAGE   # image
         mov     r12, SPACESHIP_TYPE     # image
@@ -154,16 +163,16 @@ update:
         mov     r14, 0                  # timeout
         mov     r15, 0                  # data
 
-        mov     r9, 128
+        mov     r9, 128                 # x
         call    create_sprite
 
-        mov     r9, 288
+        mov     r9, 288                 # x
         call    create_sprite
 
-        mov     r9, 448
+        mov     r9, 448                 # x
         call    create_sprite
 
-        mov     r9, 608
+        mov     r9, 608                 # x
         call    create_sprite
 
         /* Create cats */
@@ -174,62 +183,75 @@ update:
         mov     r15, 0                  # data
 
         mov     r10, (CAT_LINES - 1) * CAT_SPACE_Y + PADDING_Y + 40
-_create_cat_lines:
 
+_initialization__create_cat_lines:
         mov     r9, (CAT_COLUMNS - 1) * CAT_SPACE_X + PADDING_X + 1
-_create_cat_columns:
 
-        call    lcg_randint
+_initialization__create_cat_columns:
+        call    randint
         and     r14, CAT_SHOT_INTERVAL
         call    create_sprite
 
         sub     r9, CAT_SPACE_X
         cmp     r9, PADDING_X + 1
-        jge     _create_cat_columns
+        jge     _initialization__create_cat_columns
 
         sub     r10, CAT_SPACE_Y
         cmp     r10, PADDING_Y + 40
-        jge     _create_cat_lines
+        jge     _initialization__create_cat_lines
+
+_initialization__end:
 
 
-_already_initialized:
 /***********************************************************************
   Game over
 ***********************************************************************/
+
+_gameover:
         cmp     word ptr [rcx + ADDR_SPACESHIP + SPRITE_LIFE], 0
-        jg      _not_gameover
+        jg      _gameover__end
 
         mov     r8, 0
         mov     r9, 0
         mov     r10, GAMEOVER_IMAGE
         call    draw_image
 
-        jmp     _end_update
-_not_gameover:
+        jmp     _update__end
+
+_gameover__end:
+
+
 /***********************************************************************
   Spaceship animation
 ***********************************************************************/
+
 _spaceship_animation:
         mov     r8b, byte ptr [rcx + ADDR_TICK]
         and     r8b, 2
         cmp     r8b, 0
         jne     _spaceship_animation__else
+
 _spaceship_animation__if_tick_modulo_2_is_0:
         mov     word ptr [rcx + ADDR_SPACESHIP + SPRITE_IMAGE], SPACESHIP1_IMAGE
-        jmp     _spaceship_animation__endif
+        jmp     _spaceship_animation__end
+
 _spaceship_animation__else:
         mov     word ptr [rcx + ADDR_SPACESHIP + SPRITE_IMAGE], SPACESHIP2_IMAGE
-_spaceship_animation__endif:
+
+_spaceship_animation__end:
 
 
 /***********************************************************************
   Spaceship shoot
 ***********************************************************************/
-        cmp     qword ptr[rcx + ADDR_SPACESHIP + SPRITE_TIMEOUT], 0
-        jg      _spaceship_not_shooting_with_cooldown
-        cmp     byte ptr [rcx + ADDR_SHOOT], 0
-        je      _spaceship_not_shooting
 
+_spaceship_shoot:
+        cmp     qword ptr[rcx + ADDR_SPACESHIP + SPRITE_TIMEOUT], 0
+        jg      _spaceship_shoot__elif_not_shooting_and_cooldown_ne_0
+        cmp     byte ptr [rcx + ADDR_SHOOT], 0
+        je      _spaceship_shoot__end
+
+_spaceship_shoot__if_shoot_cooldown_eq_0:
         mov     qword ptr[rcx + ADDR_SPACESHIP + SPRITE_TIMEOUT], SPACESHIP_SHOT_INTERVAL
 
         mov     r9w, word ptr[rcx + ADDR_SPACESHIP + SPRITE_W]
@@ -242,29 +264,65 @@ _spaceship_animation__endif:
         mov     r10w, word ptr[rcx + ADDR_SPACESHIP + SPRITE_Y]
         sub     r10w, word ptr[rsi + FOOD_IMAGE * 2]
 
-        mov     r11, FOOD_IMAGE        # image
-        mov     r12, FOOD_TYPE         # type
+        mov     r11, FOOD_IMAGE         # image
+        mov     r12, FOOD_TYPE          # type
         mov     r13, 1                  # life
         mov     r14, 0                  # timeout
         mov     r15, 0                  # data
         call    create_sprite
 
-_spaceship_not_shooting_with_cooldown:
+_spaceship_shoot__elif_not_shooting_and_cooldown_ne_0:
         sub qword ptr[rcx + ADDR_SPACESHIP + SPRITE_TIMEOUT], 1
-_spaceship_not_shooting:
+
+_spaceship_shoot__end:
+
+
+/***********************************************************************
+  Spaceship move
+***********************************************************************/
+
+_spaceship_move:
+        cmp     byte ptr [rcx + ADDR_MOVE_LEFT], 0
+        je      __spaceship_move__right
+        cmp     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
+        jne      _spaceship_move__end
+
+__spaceship_move__left:
+        sub     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], SPACESHIP_SPEED
+        cmp     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], PADDING_X
+        jge     _spaceship_move__end
+        mov     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], PADDING_X
+        jmp     _spaceship_move__end
+
+__spaceship_move__right:
+        cmp     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
+        je      _spaceship_move__end
+        add     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], SPACESHIP_SPEED
+        mov     ax, word ptr [rcx + ADDR_SPACESHIP + SPRITE_X]
+        add     ax, word ptr [rcx + ADDR_SPACESHIP + SPRITE_W]
+        cmp     ax, WIDTH_SCREEN - PADDING_X
+        jl      _spaceship_move__end
+        mov     ax, WIDTH_SCREEN - PADDING_X
+        sub     ax, word ptr [rcx + ADDR_SPACESHIP + SPRITE_W]
+        mov     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], ax
+
+_spaceship_move__end:
+
 
 /***********************************************************************
   Find min and max position of cats
 ***********************************************************************/
+
 _max_min_cat:
         mov     r12w, WIDTH_SCREEN
         mov     r13w, 0
         mov     r14w, 0
-        lea     r10, [rip + _callback_max_min_cat]
+        lea     r10, [rip + _max_min_cat__callback]
         mov     r11, CAT_TYPE
         call    apply_sprites
-        jmp     _end_callback_max_min_cat
-_callback_max_min_cat:
+        jmp     __max_min_cat__end
+
+_max_min_cat__callback:
         mov     r9w, word ptr [r8 + SPRITE_X]
         cmp     r12w, r9w
         cmovg   r12w, r9w
@@ -273,91 +331,106 @@ _callback_max_min_cat:
         cmovl   r13w, r9w
         inc     r14w
         ret
-_end_callback_max_min_cat:
 
+__max_min_cat__end:
 
 
 /***********************************************************************
   Update move cats
 ***********************************************************************/
+
+_update_cat_move:
         mov     r15w, 0
         cmp     r12w, PADDING_X
-        jle     _update_cat__turn_right
+        jle     _update_cat_move__right
         cmp     r13w, WIDTH_SCREEN - PADDING_X
-        jge     _update_cat__turn_left
-        jmp     _update_cat__end_turn
-_update_cat__turn_left:
+        jge     _update_cat_move__left
+        jmp     _update_cat_move__end_turn
+
+_update_cat_move__left:
         mov    byte ptr [rcx + ADDR_CATS_MOVE], - 1
         mov    r15w, CAT_SPACE_Y
-        jmp     _update_cat__end_turn
-_update_cat__turn_right:
+        jmp     _update_cat_move__end_turn
+
+_update_cat_move__right:
         mov    byte ptr [rcx + ADDR_CATS_MOVE], 1
         mov    r15w, CAT_SPACE_Y
-_update_cat__end_turn:
 
+_update_cat_move__end_turn:
         cmp     r14w, 2
-        jge     _r1
+        jge     _update_cat_move__elif_cat_count_ge_2
+
+_update_cat_move__if_cat_count_eq_1:
         mov     rbx, 16
-        jmp     _rend
-_r1:
+        jmp     _update_cat_move__endif
+
+_update_cat_move__elif_cat_count_ge_2:
         cmp     r14w, 4
-        jge     _r2
+        jge     _update_cat_move__elif_cat_count_ge_4
         mov     rbx, 12
-        jmp     _rend
-_r2:
+        jmp     _update_cat_move__endif
+
+_update_cat_move__elif_cat_count_ge_4:
         cmp     r14w, 8
-        jge     _r3
+        jge     _update_cat_move__elif_cat_count_ge_8
         mov     rbx, 8
-        jmp     _rend
-_r3:
+        jmp     _update_cat_move__endif
+
+_update_cat_move__elif_cat_count_ge_8:
         cmp     r14w, 16
-        jge     _r4
+        jge     _update_cat_move__elif_cat_count_ge_16
         mov     rbx, 4
-        jmp     _rend
-_r4:
+        jmp     _update_cat_move__endif
+
+_update_cat_move__elif_cat_count_ge_16:
         cmp     r14w, 32
-        jge     _r5
+        jge     _update_cat_move__elif_cat_count_ge_32
         mov     rbx, 2
-        jmp     _rend
-_r5:
+        jmp     _update_cat_move__endif
+
+_update_cat_move__elif_cat_count_ge_32:
         mov     rbx, 1
-_rend:
+
+_update_cat_move__endif:
         movsx   rax, byte ptr [rcx + ADDR_CATS_MOVE]
         imul    rax, rbx
 
         add     r12w, ax
         cmp     r12w, PADDING_X
-        jl      _outside_left
+        jl      _update_cat_move__if_cat_overflow_on_left
         add     r13w, ax
         cmp     r13w, WIDTH_SCREEN - PADDING_X
-        jge     _outside_right
-        jmp     _no_outside
-_outside_left:
+        jge     _update_cat_move__if_cat_overflow_on_right
+        jmp     _update_cat_move__end
+
+_update_cat_move__if_cat_overflow_on_left:
         sub     r12w, ax
         mov     ax, PADDING_X
         sub     ax, r12w
-        jmp     _no_outside
-_outside_right:
+        jmp     _update_cat_move__end
+
+_update_cat_move__if_cat_overflow_on_right:
         sub     r13w, ax
         mov     ax, WIDTH_SCREEN - PADDING_X
         sub     ax, r13w
-_no_outside:
 
+_update_cat_move__end:
 
 
 /***********************************************************************
   Update cats
 ***********************************************************************/
+
 _update_cat:
-        lea     r10, [rip + _callback_update_cat]
+        lea     r10, [rip + _update_cat__callback]
         mov     r11, CAT_TYPE
         call    apply_sprites
-        jmp     _end_callback_update_cat
-_callback_update_cat:
+        jmp     _update_cat__end
 
+_update_cat__callback:
         mov     r14, qword ptr [r8 + SPRITE_TIMEOUT]
         cmp     r14, 0
-        jg      _callback_update_cat__not_shooting
+        jg      _update_cat__callback_not_shooting
         mov     qword ptr [r8 + SPRITE_TIMEOUT], CAT_SHOT_INTERVAL
 
         push    r8
@@ -369,13 +442,13 @@ _callback_update_cat:
         push    r14
         push    r15
 
-        mov     r9w, word ptr [r8 + SPRITE_W]            # x
+        mov     r9w, word ptr [r8 + SPRITE_W]   # x
         ror     r9w, 1
         add     r9w, word ptr [r8 + SPRITE_X]
 
-        mov     r10w, word ptr [r8 + SPRITE_H]                # y
+        mov     r10w, word ptr [r8 + SPRITE_H]  # y
         ror     r10w, 1
-        add     r10w, word ptr [r8 + SPRITE_Y]                # y
+        add     r10w, word ptr [r8 + SPRITE_Y]  # y
 
 
         mov     r11, MOUSE_IMAGE        # image
@@ -394,72 +467,89 @@ _callback_update_cat:
         pop     r9
         pop     r8
 
-_callback_update_cat__not_shooting:
+_update_cat__callback_not_shooting:
         sub     qword ptr [r8 + SPRITE_TIMEOUT], 1
 
         cmp     r15w, 0
-        je      _simple_move
+        je      _update_cat__callback_move
         add     word ptr [r8 + SPRITE_Y], r15w
         movsx   bx, byte ptr [rcx + ADDR_CATS_MOVE]
         add     word ptr [r8 + SPRITE_X], bx
-        jmp     _end_move
-_simple_move:
+        jmp     _update_cat__callback_go_down
 
+_update_cat__callback_move:
         add     word ptr [r8 + SPRITE_X], ax
-_end_move:
 
+_update_cat__callback_go_down:
         mov     r14w, word ptr [r8 + SPRITE_Y]
         add     r14w, word ptr [r8 + SPRITE_H]
         cmp     r14w, HEIGHT_SCREEN
-        jl      _not_ouside_cat
+        jl      _update_cat__callback_not_ouside
 
         mov    word ptr [r8 + SPRITE_LIFE], 0
         sub    word ptr [rcx + ADDR_SPACESHIP + SPRITE_LIFE], 1
 
-_not_ouside_cat:
+_update_cat__callback_not_ouside:
         ret
-_end_callback_update_cat:
+
+_update_cat__end:
+
 
 /***********************************************************************
   Update mouse
 ***********************************************************************/
+
 _update_mouse:
-        lea     r10, [rip + _callback_update_mouse]
+        lea     r10, [rip + _update_mouse__callback]
         mov     r11, MOUSE_TYPE
         call    apply_sprites
-        jmp     _end_callback_update_mouse
-_callback_update_mouse:
+        jmp     _update_mouse__end
+
+_update_mouse__callback:
         add     word ptr [r8 + SPRITE_Y], CAT_SHOT_SPEED
         mov     r10w, word ptr [r8 + SPRITE_Y]
         add     r10w, word ptr [r8 + SPRITE_H]
         cmp     r10w, HEIGHT_SCREEN
-        jl      _callback_update_mouse__not_outside
+        jl      _update_mouse__callback__else
+
+_update_mouse__callback__if_ouside:
         call    delete_sprite
-_callback_update_mouse__not_outside:
+
+_update_mouse__callback__else:
         ret
-_end_callback_update_mouse:
+
+_update_mouse__end:
+
 
 /***********************************************************************
   Update food
 ***********************************************************************/
+
 _update_food:
-        lea     r10, [rip + _callback_update_food]
+        lea     r10, [rip + _update_food__callback]
         mov     r11, FOOD_TYPE
         call    apply_sprites
-        jmp     _end_callback_update_food
-_callback_update_food:
+        jmp     _update_food__end
+
+_update_food__callback:
         sub     word ptr [r8 + SPRITE_Y], SPACESHIP_SHOT_SPEED
         cmp     word ptr [r8 + SPRITE_Y], 0
-        jge     _callback_update_food__not_outside
+        jge     _update_food__callback__else
+
+_update_food__callback__if_ouside:
         call    delete_sprite
-_callback_update_food__not_outside:
+
+_update_food__callback__else:
         ret
-_end_callback_update_food:
+
+_update_food__end:
+
 
 /***********************************************************************
   Interaction
 ***********************************************************************/
 
+_interaction:
         mov     r8, SPRITE_SIZE
         mov     r9, qword ptr [rcx + ADDR_SPRITE_COUNT]
         dec     r9
@@ -467,9 +557,8 @@ _end_callback_update_food:
         mov     r9, rcx
         add     r9, ADDR_SPRITE_LIST
         add     r8, r9
-_for_sprite_in_sprites:
 
-        /*perfrom action*/
+_interaction__for_sprite_in_sprites:
         mov     r10, SPRITE_SIZE
         mov     r11, qword ptr [rcx + ADDR_SPRITE_COUNT]
         dec     r11
@@ -477,44 +566,45 @@ _for_sprite_in_sprites:
         mov     r11, rcx
         add     r11, ADDR_SPRITE_LIST
         add     r10, r11
-_for_contact_in_sprites:
 
+_interaction__for_contact_in_sprites:
         /* No self interaction */
         cmp     r8, r10
-        je      _no_intersect
+        je      _interaction__if_not_intersect
 
-        /* Dead dont act */
+        /* Dead sprite dont act */
         cmp     word ptr [r8 + SPRITE_LIFE], 0
-        jle     _no_intersect
+        jle     _interaction__if_not_intersect
         cmp     word ptr [r10 + SPRITE_LIFE], 0
-        jle     _no_intersect
+        jle     _interaction__if_not_intersect
 
         /* x1 < x2 + w2 */
         mov     r12w, word ptr [r8 + SPRITE_X]
         mov     r13w, word ptr [r10 + SPRITE_X]
         add     r13w, word ptr [r10 + SPRITE_W]
         cmp     r12w, r13w
-        jge     _no_intersect
+        jge     _interaction__if_not_intersect
 
         /* x2 < x1 + w1 */
         mov     r13w, word ptr [r10 + SPRITE_X]
         add     r12w, word ptr [r8 + SPRITE_W]
         cmp     r13w, r12w
-        jge     _no_intersect
+        jge     _interaction__if_not_intersect
 
         /* y1 < y2 + h2 */
         mov     r12w, word ptr [r8 + SPRITE_Y]
         mov     r13w, word ptr [r10 + SPRITE_Y]
         add     r13w, word ptr [r10 + SPRITE_H]
         cmp     r12w, r13w
-        jge     _no_intersect
+        jge     _interaction__if_not_intersect
 
         /* y2 < y1 + h1 */
         mov     r13w, word ptr [r10 + SPRITE_Y]
         add     r12w, word ptr [r8 + SPRITE_H]
         cmp     r13w, r12w
-        jge     _no_intersect
-
+        jge     _interaction__if_not_intersect
+	
+        /* Save local registers */
         push    r8
         push    r9
         push    r10
@@ -522,118 +612,142 @@ _for_contact_in_sprites:
 
 
 /***********************************************************************
-  Interaction sprite by sprite, r8 for sprite, r10 for contact, no deletion here
+  Interaction sprite by sprite, r8 for sprite, r10 for contact, no deletion
 ***********************************************************************/
-_interact_kennel_mouse:
+
+_interaction__kennel_mouse:
         cmp     word ptr [r8 + SPRITE_TYPE], MOUSE_TYPE
-        jne     _end_interact_kennel_mouse
+        jne     _interaction__kennel_mouse_end
         cmp     word ptr [r10 + SPRITE_TYPE], KENNEL_TYPE
-        jne     _end_interact_kennel_mouse
+        jne     _interaction__kennel_mouse_end
 
         sub     word ptr [r8 + SPRITE_LIFE],  1
         sub     word ptr [r10 + SPRITE_LIFE], 1
-_end_interact_kennel_mouse:
 
-_interact_spaceship_mouse:
+_interaction__kennel_mouse_end:
+
+
+_interaction__spaceship_mouse:
         cmp     word ptr [r8 + SPRITE_TYPE], MOUSE_TYPE
-        jne     _end_interact_spaceship_mouse
+        jne     _interaction__spaceship_mouse_end
         cmp     word ptr [r10 + SPRITE_TYPE], SPACESHIP_TYPE
-        jne     _end_interact_spaceship_mouse
+        jne     _interaction__spaceship_mouse_end
 
         sub     word ptr [r8 + SPRITE_LIFE],  1
         sub     word ptr [r10 + SPRITE_LIFE], 1
 
-_end_interact_spaceship_mouse:
+_interaction__spaceship_mouse_end:
 
-_interact_food_cat:
+
+_interaction__food_cat:
         cmp     word ptr [r8 + SPRITE_TYPE], FOOD_TYPE
-        jne     _end_interact_food_cat
+        jne     _interaction__food_cat_end
         cmp     word ptr [r10 + SPRITE_TYPE], CAT_TYPE
-        jne     _end_interact_food_cat
+        jne     _interaction__food_cat_end
 
         sub     word ptr [r8 + SPRITE_LIFE],  1
         sub     word ptr [r10 + SPRITE_LIFE], 1
-_end_interact_food_cat:
 
-_interact_food_kennel:
+_interaction__food_cat_end:
+
+
+_interaction__food_kennel:
         cmp     word ptr [r8 + SPRITE_TYPE], FOOD_TYPE
-        jne     _end_interact_food_kennel
+        jne     _interaction__food_kennel_end
         cmp     word ptr [r10 + SPRITE_TYPE], KENNEL_TYPE
-        jne     _end_interact_food_kennel
+        jne     _interaction__food_kennel_end
 
         sub     word ptr [r8 + SPRITE_LIFE],  1
-_end_interact_food_kennel:
 
-_interact_cat_spaceship:
+_interaction__food_kennel_end:
+
+
+_interaction__cat_spaceship:
         cmp     word ptr [r8 + SPRITE_TYPE], CAT_TYPE
-        jne     _end_interact_cat_spaceship
+        jne     _interaction__cat_spaceship_end
         cmp     word ptr [r10 + SPRITE_TYPE], SPACESHIP_TYPE
-        jne     _end_interact_cat_spaceship
+        jne     _interaction__cat_spaceship_end
 
         sub     word ptr [r8 + SPRITE_LIFE], 1
         sub     word ptr [r10 + SPRITE_LIFE], 1
-_end_interact_cat_spaceship:
 
-_interact_cat_kennel:
+_interaction__cat_spaceship_end:
+
+
+_interaction__cat_kennel:
         cmp     word ptr [r8 + SPRITE_TYPE], CAT_TYPE
-        jne     _end_interact_cat_kennel
+        jne     _interaction__cat_kennel_end
         cmp     word ptr [r10 + SPRITE_TYPE], KENNEL_TYPE
-        jne     _end_interact_cat_kennel
+        jne     _interaction__cat_kennel_end
 
         sub     word ptr [r10 + SPRITE_LIFE], 1
-_end_interact_cat_kennel:
+
+_interaction__cat_kennel_end:
+
 
 /***********************************************************************
   End interaction sprite by sprite
 ***********************************************************************/
-
+	/* Reload local registers */
         pop     r11
         pop     r10
         pop     r9
         pop     r8
-_no_intersect:
 
+_interaction__if_not_intersect:
         sub     r10, SPRITE_SIZE
         cmp     r10, r11
-        jge      _for_contact_in_sprites
-        /*end perfrom action*/
+        jge     _interaction__for_contact_in_sprites
 
         sub     r8, SPRITE_SIZE
         cmp     r8, r9
-        jge      _for_sprite_in_sprites
+        jge      _interaction__for_sprite_in_sprites
+
 
 /***********************************************************************
   Update kennel
 ***********************************************************************/
-        lea     r10, [rip + _callback_update_kennel]
+
+_update_kennel:
+        lea     r10, [rip + _update_kennel__callback]
         mov     r11, KENNEL_TYPE
         call    apply_sprites
-        jmp     _end_callback_update_kennel
-_callback_update_kennel:
+        jmp     _update_kennel__end
+
+_update_kennel__callback:
         cmp     word ptr [r8 + SPRITE_LIFE], 1
-        jg     _n1
+        jg     _update_kennel__callback_kennel_2
+
+_update_kennel__callback_kennel_1:
         mov     word ptr [r8 + SPRITE_IMAGE], KENNEL1_IMAGE
-        jmp     _nend
-_n1:
+        jmp     _update_kennel__callback_end
+
+_update_kennel__callback_kennel_2:
         cmp     word ptr [r8 + SPRITE_LIFE], 2
-        jg      _n2
+        jg      _update_kennel__callback_kennel_3
         mov     word ptr [r8 + SPRITE_IMAGE], KENNEL2_IMAGE
-        jmp     _nend
-_n2:
+        jmp     _update_kennel__callback_end
+
+_update_kennel__callback_kennel_3:
         cmp     word ptr [r8 + SPRITE_LIFE], 3
-        jg      _n3
+        jg      _update_kennel__callback_kennel_4
         mov     word ptr [r8 + SPRITE_IMAGE], KENNEL3_IMAGE
-        jmp     _nend
-_n3:
+        jmp     _update_kennel__callback_end
+
+_update_kennel__callback_kennel_4:
         mov     word ptr [r8 + SPRITE_IMAGE], KENNEL4_IMAGE
-_nend:
+
+_update_kennel__callback_end:
         ret
-_end_callback_update_kennel:
+
+_update_kennel__end:
+
 
 /***********************************************************************
   Loop for deletion
 ***********************************************************************/
 
+_deletion:
         mov     r8, SPRITE_SIZE
         mov     r9, qword ptr [rcx + ADDR_SPRITE_COUNT]
         dec     r9
@@ -644,84 +758,111 @@ _end_callback_update_kennel:
 
         add     r8, r9
 
-_garbage_death_loop:
+_deletion__for_sprite_in_sprites:
         cmp     word ptr [r8 + SPRITE_LIFE], 0
-        jg      _no_garbage
+
+        jg      _deletion__else
+
+_deletion__if_life_lg_0:
         call    delete_sprite
-_no_garbage:
+
+_deletion__else:
         sub     r8, SPRITE_SIZE
         cmp     r8, r9
-        jg      _garbage_death_loop
+        jg      _deletion__for_sprite_in_sprites
+
+_deletion__end:
+
 
 /***********************************************************************
   Draw background
 ***********************************************************************/
-        /* Draw all sprite ! */
-        # Drawing the void
+
         mov     r8, 0
         mov     r9, 0
         mov     r10, VOID_IMAGE
         call    draw_image
 
+
 /***********************************************************************
-  Draw all sprites
+  Draw all sprites : TODO invert this
 ***********************************************************************/
+
+_draw_sprites:
         mov     r11, rcx
         add     r11, ADDR_SPRITE_LIST
         mov     r12, qword ptr [rcx + ADDR_SPRITE_COUNT]
-_loop_draw:
+
+_draw_sprites__for_sprite_in_sprites:
 
         movzx   r8, word ptr [r11 + SPRITE_X]
         movzx   r9, word ptr [r11 + SPRITE_Y]
         movzx   r10, word ptr [r11 + SPRITE_IMAGE]
-        call draw_image
+        call    draw_image
 
         add     r11, SPRITE_SIZE
         sub     r12, 1
-        jae     _loop_draw
+        jae     _draw_sprites__for_sprite_in_sprites
+
 
 /***********************************************************************
   Draw heart
 ***********************************************************************/
+
+_draw_hearts:
         movsx   r11, word ptr [rcx + ADDR_SPACESHIP + SPRITE_LIFE]
         cmp     r11, 0
-        jg      _draw_heart_not_zero
-        mov     r11, 0
-_draw_heart_not_zero:
+        jg      _draw_hearts__any_case
 
+_draw_hearts__if_life_lt_0:
+        mov     r11, 0
+
+_draw_hearts__any_case:
         mov     r12, SPACESHIP_LIFE
         sub     r12, r11
         mov     r8, PADDING_X
         mov     r9, PADDING_Y
+
         mov     r10, HEART_IMAGE
-_loop_heart:
+
+_draw_hearts__for_heart_in_hearts:
         cmp     r11, 0
-        jle      _end_loop_heart
+        jle      _draw_hearts__end_for_heart_in_hearts
         call    draw_image
         add     r8, 40
         dec     r11
-        jmp     _loop_heart
-_end_loop_heart:
+        jmp     _draw_hearts__for_heart_in_hearts
+
+_draw_hearts__end_for_heart_in_hearts:
+
+
         mov     r10, EMPTY_HEART_IMAGE
-_loop_empty_heart:
+_draw_hearts__for_heart_in_empty_hearts:
+
         cmp     r12, 0
-        jle      _end_loop_empty_heart
+        jle      _draw_hearts__end_for_heart_in_empty_hearts
         call    draw_image
         add     r8, 40
         dec     r12
-        jmp     _loop_empty_heart
-_end_loop_empty_heart:
+        jmp     _draw_hearts__for_heart_in_empty_hearts
 
-_end_update:
+_draw_hearts__end_for_heart_in_empty_hearts:
+
+_update__end:
+
 
 /***********************************************************************
   Update gametick
 ***********************************************************************/
+
         add     qword ptr [rcx + ADDR_TICK], 1
+
 
 /***********************************************************************
   Reload registers
 ***********************************************************************/
+
+_reload_registers:
         pop    r15
         pop    r14
         pop    r13
@@ -742,31 +883,41 @@ _end_update:
         ret
         # End of process_image_asm
 
-sleep:
- /***************
-  * Sleep time
-  * Needed registers :
-  *      r8  : nanoseonds
-  ***************/
-        push    rbp
-        mov     rbp, rsp
-        push    r8
-_sleep__for_each_iteration:
-        sub     r8, 1
-        jae     _sleep__for_each_iteration
 
-        pop     r8
-        mov     rsp, rbp
-        pop     rbp
+
+randint:
+ /***************
+  * Generate random number between 0 and 2^31.
+  * More on https://en.wikipedia.org/wiki/Linear_congruential_generator
+  * Needed registers :
+  *      rcx : data memory
+  * Return registers :
+  *      r14 : the generated number
+  ***************/
+        push    rax
+        push    rdx
+
+        mov     rax, qword ptr [rcx + ADDR_SEED]
+        mov     r14, 1103515245
+        mul     r14
+        add     rax, 12345
+        and     rax, 0x7fffffff
+        mov     qword ptr [rcx + ADDR_SEED], rax
+        mov     r14, rax
+
+        pop     rdx
+        pop     rax
         ret
 
+
+
+apply_sprites:
  /***************
-  * Create a sprite
+  * Run a callback on every sprite iwth a given type.
   * Needed registers :
   *     r10 : callback (r8 : actual sprite, dont touch to r9)
   *     r11 : type
-  */
-apply_sprites:
+  ***************/
         push    rbp
         mov     rbp, rsp
 
@@ -810,32 +961,6 @@ _apply_sprites__if_type_not_match:
 
 
 
-
-lcg_randint:
- /***************
-  *  Generate random number between 0 and 2^31
-  * From https://www.javamex.com/tutorials/random_numbers/ThreadLocalRandom.shtml
-  * Needed registers :
-  *      rcx : data memory
-  * Return registers :
-  *      r14 : the new seed
-  ***************/
-        push    rax
-        push    rdx
-
-        mov     rax, qword ptr [rcx + ADDR_SEED]
-        mov     r14, 1103515245
-        mul     r14
-        add     rax, 12345
-        and     rax, 0x7fffffff
-        mov     qword ptr [rcx + ADDR_SEED], rax
-        mov     r14, rax
-
-        pop     rdx
-        pop     rax
-        ret
-
-
 create_sprite:
  /***************
   * Create a sprite
@@ -877,6 +1002,7 @@ create_sprite:
         ret
 
 
+
 delete_sprite:
  /***************
   * Create a sprite
@@ -906,8 +1032,10 @@ _delete_loop:
         mov     qword  ptr [r8 + 24], r10
         add     r8, SPRITE_SIZE
         jmp     _delete_loop
+
 _end_delete_loop:
         ret
+
 
 
 draw_image:

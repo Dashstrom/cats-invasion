@@ -5,22 +5,45 @@ PKGCONFIG = $(shell which pkg-config)
 GTK_INC = $(shell $(PKGCONFIG) --cflags gtk+-3.0)
 GTK_LIB = $(shell $(PKGCONFIG) --libs gtk+-3.0)
 
-BINARY = tp_vintagegame
-C_SRCS = lib/main.c lib/process_game1_c.c lib/utils.c
-ASM_SRCS = src/process_game1_asm.S 
+SOURCEDIR = src
+BUILDDIR = build
+IMAGEDIR = data/images
+EXECUTABLE = SpaceInvaders
 
-OBJS = $(ASM_SRCS:.S=.o) $(C_SRCS:.c=.o)
+RESOURCES_XML = data/resources.xml
+RESOURCES_SOURCE = build/resources.c
+RESOURCES_OBJECT = build/resources.o
 
-all: $(BINARY)
+ASM_SOURCES = $(wildcard $(SOURCEDIR)/*.S) 
+C_SOURCES = $(wildcard $(SOURCEDIR)/*.c) 
 
-%.o: %.c
-	$(CC) -c -o $@ $(CFLAGS) $(GTK_INC) $<
+ASM_OBJECTS = $(patsubst $(SOURCEDIR)/%.S,$(BUILDDIR)/%.o,$(ASM_SOURCES))
+C_OBJECTS = $(patsubst $(SOURCEDIR)/%.c,$(BUILDDIR)/%.o,$(C_SOURCES))
 
-%.o: %.S
-	$(CC) -c -o $@ $(CFLAGS) $<
+OBJECTS = $(ASM_OBJECTS) $(C_OBJECTS) $(RESOURCES_OBJECT)
 
-$(BINARY): $(OBJS) 
+
+.phony: all
+all: dir $(BUILDDIR)/$(EXECUTABLE)
+
+dir:
+	mkdir -p $(BUILDDIR)
+
+$(BUILDDIR)/$(EXECUTABLE): $(OBJECTS)
 	$(CC) -o $@ $(LDFLAGS) $^ $(GTK_LIB)
 
+$(RESOURCES_SOURCE):
+	glib-compile-resources --target=$(RESOURCES_SOURCE) --generate-source $(RESOURCES_XML)
+
+$(RESOURCES_OBJECT): $(RESOURCES_SOURCE)
+	$(CC) -c -o $@ $(CFLAGS) $(GTK_INC) $<
+
+$(C_OBJECTS): $(BUILDDIR)/%.o : $(SOURCEDIR)/%.c
+	$(CC) -c -o $@ $(CFLAGS) $(GTK_INC) $<
+
+$(ASM_OBJECTS): $(BUILDDIR)/%.o : $(SOURCEDIR)/%.S
+	$(CC) -c -o $@ $(CFLAGS) $<
+
+.phony: clean
 clean:
-	rm -f $(OBJS) $(BINARY)
+	rm -rf $(BUILDDIR)

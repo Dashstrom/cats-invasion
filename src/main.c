@@ -1,10 +1,10 @@
 #include <glib/gprintf.h>
 #include <gtk/gtk.h>
-#include <sys/time.h>
 #include <stdarg.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/time.h>
 #include <time.h>
 
 /* App settings */
@@ -17,9 +17,12 @@
 #define APP_MEMORY 32000
 #define FPS_MAX 13
 #define IMAGE_PATH "/sprites/data/images/"
+#define ADDR_MOVE_LEFT 24
+#define ADDR_MOVE_RIGHT 25
+#define ADDR_SHOOT 26
 
 /* Pointer to the memory area */
-void *memory;
+char *memory;
 
 /* Pointers to image data */
 uint16_t widths[SPRITE_COUNT];
@@ -32,39 +35,31 @@ GtkWidget *main_window;
 /* Actual image widget */
 GtkWidget *image;
 
-typedef struct _image
-{
+typedef struct _image {
     gchar *path;
     GdkPixbuf *pixbuf;
 } image_t;
-image_t images[] = {{IMAGE_PATH "base.bmp", NULL},
-                    {IMAGE_PATH "debug.bmp", NULL},
-                    {IMAGE_PATH "void.bmp", NULL},
-                    {IMAGE_PATH "cat.png", NULL},
-                    {IMAGE_PATH "cat-explode.png", NULL},
-                    {IMAGE_PATH "food.png", NULL},
-                    {IMAGE_PATH "spaceship1.png", NULL},
-                    {IMAGE_PATH "spaceship2.png", NULL},
-                    {IMAGE_PATH "kennel4.png", NULL},
-                    {IMAGE_PATH "kennel3.png", NULL},
-                    {IMAGE_PATH "kennel2.png", NULL},
-                    {IMAGE_PATH "kennel1.png", NULL},
-                    {IMAGE_PATH "mouse.png", NULL},
-                    {IMAGE_PATH "heart.png", NULL},
-                    {IMAGE_PATH "empty_heart.png", NULL},
-                    {IMAGE_PATH "gameover.png", NULL}};
+
+image_t images[] = {
+    {IMAGE_PATH "base.bmp", NULL},        {IMAGE_PATH "debug.bmp", NULL},
+    {IMAGE_PATH "void.bmp", NULL},        {IMAGE_PATH "cat.png", NULL},
+    {IMAGE_PATH "cat-explode.png", NULL}, {IMAGE_PATH "food.png", NULL},
+    {IMAGE_PATH "spaceship1.png", NULL},  {IMAGE_PATH "spaceship2.png", NULL},
+    {IMAGE_PATH "kennel4.png", NULL},     {IMAGE_PATH "kennel3.png", NULL},
+    {IMAGE_PATH "kennel2.png", NULL},     {IMAGE_PATH "kennel1.png", NULL},
+    {IMAGE_PATH "mouse.png", NULL},       {IMAGE_PATH "heart.png", NULL},
+    {IMAGE_PATH "empty_heart.png", NULL}, {IMAGE_PATH "gameover.png", NULL}};
 
 /* 0 If all is OK else 1 when application is destroying the main window */
 gboolean is_shutting_down = 0;
 
 /* Assembly function */
-void update(uint16_t *img_width, uint16_t *img_height,
-            uint8_t **img_src, void *Donnees_ptr);
+void update(uint16_t *img_width, uint16_t *img_height, uint8_t **img_src,
+            void *Donnees_ptr);
 
 /* Print a simple message dialog */
 void message_dialog(const gchar *title, GtkMessageType type,
-                    const gchar *format, ...)
-{
+                    const gchar *format, ...) {
     va_list ap;
 
     va_start(ap, format);
@@ -73,25 +68,23 @@ void message_dialog(const gchar *title, GtkMessageType type,
     g_vasprintf(&message, format, ap);
 
     GtkWidget *dialog = gtk_message_dialog_new(
-        GTK_WINDOW(main_window), GTK_DIALOG_DESTROY_WITH_PARENT,
-        type, GTK_BUTTONS_CLOSE, "%s", message);
+        GTK_WINDOW(main_window), GTK_DIALOG_DESTROY_WITH_PARENT, type,
+        GTK_BUTTONS_CLOSE, "%s", message);
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
     g_free(message);
 }
 
 /* Load all images from resources */
-void setup_images()
-{
+void setup_images() {
     GError *error = NULL;
-    for (size_t i = 0; i < SPRITE_COUNT; i++)
-    {
-        GdkPixbuf *pixbuf = gdk_pixbuf_new_from_resource(images[i].path, &error);
-        if (error != NULL)
-        {
+    for (size_t i = 0; i < SPRITE_COUNT; i++) {
+        GdkPixbuf *pixbuf =
+            gdk_pixbuf_new_from_resource(images[i].path, &error);
+        if (error != NULL) {
             message_dialog("Error", GTK_MESSAGE_ERROR,
-                           "Can't load image %s: %s",
-                           images[i].path, error->message);
+                           "Can't load image %s: %s", images[i].path,
+                           error->message);
             g_error_free(error);
             /* TODO : Dirty wait to shutdown here*/
             exit(1);
@@ -104,31 +97,54 @@ void setup_images()
 }
 
 /* Wrapper for update loop in assembly */
-void update_loop()
-{
-    if (!is_shutting_down)
-    {
+void update_loop() {
+    if (!is_shutting_down) {
         g_timeout_add(1000 / FPS_MAX, (GSourceFunc)update_loop, NULL);
         update(widths, heights, pixels, memory);
-        gtk_image_set_from_pixbuf(GTK_IMAGE(image), images[BACKGROUD_INDEX].pixbuf);
-        while (gtk_events_pending())
-            gtk_main_iteration_do(FALSE);
+        gtk_image_set_from_pixbuf(GTK_IMAGE(image),
+                                  images[BACKGROUD_INDEX].pixbuf);
+        while (gtk_events_pending()) gtk_main_iteration_do(FALSE);
     }
 }
 
 /* Called when window is destroy, free all objects */
-static void shutdown(GApplication *app)
-{
+static void shutdown(GApplication *app) {
     is_shutting_down = 1;
     free(memory);
     for (size_t i = 0; i < SPRITE_COUNT; i++)
-        if (images[i].pixbuf != NULL)
-            g_object_unref(images[i].pixbuf);
+        if (images[i].pixbuf != NULL) g_object_unref(images[i].pixbuf);
+}
+
+/* Called by GTK3 when a key is pressed */
+int key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data) {
+    if (event->keyval == GDK_KEY_Q){
+        memory[ADDR_MOVE_LEFT] = 1;
+    }
+    else if (event->keyval == GDK_KEY_D){
+        memory[ADDR_MOVE_RIGHT] = 1;
+    }
+    else if (event->keyval == GDK_KEY_space){
+        memory[ADDR_SHOOT] = 1;
+    }
+    return 0;
+}
+
+/* Called by GTK3 when a key is released */
+int key_released(GtkWidget *widget, GdkEventKey *event, gpointer data) {
+    if (event->keyval == GDK_KEY_Q){
+        memory[ADDR_MOVE_LEFT] = 0;
+    }
+    else if (event->keyval == GDK_KEY_D){
+        memory[ADDR_MOVE_RIGHT] = 0;
+    }
+    else if (event->keyval == GDK_KEY_space){
+        memory[ADDR_SHOOT] = 0;
+    }
+    return 0;
 }
 
 /* Called when application is created */
-static void activate(GApplication *app)
-{
+static void activate(GApplication *app) {
     memory = calloc(1, APP_MEMORY);
 
     /* Create main window */
@@ -137,7 +153,16 @@ static void activate(GApplication *app)
     gtk_window_set_title(GTK_WINDOW(main_window), APP_NAME);
 
     /* Add callback for window deletion */
-    g_signal_connect(GTK_WINDOW(main_window), "destroy", G_CALLBACK(shutdown), NULL);
+    g_signal_connect(GTK_WINDOW(main_window), "destroy", G_CALLBACK(shutdown),
+                     NULL);
+
+    /*Add callback for key press*/
+    g_signal_connect(GTK_WINDOW(main_window), "key-press-event",
+                     &key_pressed, NULL);
+    
+    /*Add callback for key press*/
+    g_signal_connect(GTK_WINDOW(main_window), "key-release-event",
+                     &key_released, NULL);
 
     /* Add box for image */
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
@@ -164,10 +189,9 @@ static void activate(GApplication *app)
 }
 
 /* Entry point */
-int main(int argc, char *argv[])
-{
-    GtkApplication *app = gtk_application_new(
-        "fr.dashstrom.space-invaders-asm", 0);
+int main(int argc, char *argv[]) {
+    GtkApplication *app =
+        gtk_application_new("fr.dashstrom.space-invaders-asm", 0);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);

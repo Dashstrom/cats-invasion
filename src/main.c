@@ -43,9 +43,9 @@ typedef struct _image {
 } image_t;
 
 image_t images[] = {
-    {IMAGE_PATH "base.bmp", NULL},
-    {IMAGE_PATH "debug.bmp", NULL},
-    {IMAGE_PATH "void.bmp", NULL},
+    {IMAGE_PATH "base.png", NULL},
+    {IMAGE_PATH "debug.png", NULL},
+    {IMAGE_PATH "void.png", NULL},
     {IMAGE_PATH "cat.png", NULL},
     {IMAGE_PATH "food.png", NULL},
     {IMAGE_PATH "spaceship1.png", NULL},

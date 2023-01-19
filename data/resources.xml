@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
     <gresource>
-        <file>data/images/base.bmp</file>
-        <file>data/images/debug.bmp</file>
-        <file>data/images/void.bmp</file>
+        <file>data/images/base.png</file>
+        <file>data/images/debug.png</file>
+        <file>data/images/void.png</file>
         <file>data/images/cat.png</file>
         <file>data/images/food.png</file>
         <file>data/images/spaceship1.png</file>

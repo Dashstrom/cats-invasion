@@ -9,13 +9,21 @@
         <file>data/images/food.png</file>
         <file>data/images/spaceship1.png</file>
         <file>data/images/spaceship2.png</file>
-        <file>data/images/kennel1.png</file>
-        <file>data/images/kennel2.png</file>
-        <file>data/images/kennel3.png</file>
-        <file>data/images/kennel4.png</file>
         <file>data/images/mouse.png</file>
         <file>data/images/heart.png</file>
         <file>data/images/empty_heart.png</file>
         <file>data/images/gameover.png</file>
+        <file>data/images/win.png</file>
+        <file>data/images/start.png</file>
+        <file>data/images/kennel00.png</file>
+        <file>data/images/kennel01.png</file>
+        <file>data/images/kennel02.png</file>
+        <file>data/images/kennel03.png</file>
+        <file>data/images/kennel10.png</file>
+        <file>data/images/kennel11.png</file>
+        <file>data/images/kennel12.png</file>
+        <file>data/images/kennel20.png</file>
+        <file>data/images/kennel21.png</file>
+        <file>data/images/kennel30.png</file>
     </gresource>
 </gresources>

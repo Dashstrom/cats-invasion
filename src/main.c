@@ -8,7 +8,7 @@
 #include <time.h>
 
 /* App settings */
-#define SPRITE_COUNT 16
+#define SPRITE_COUNT 24
 #define BACKGROUD_INDEX 0
 #define ICON_INDEX 7
 #define APP_NAME "Space Invaders"
@@ -17,12 +17,13 @@
 #define APP_MEMORY 32000
 #define FPS_MAX 13
 #define IMAGE_PATH "/sprites/data/images/"
+#define ADDR_STOP 8
 #define ADDR_MOVE_LEFT 24
 #define ADDR_MOVE_RIGHT 25
 #define ADDR_SHOOT 26
 
 /* Pointer to the memory area */
-char *memory;
+unsigned char *memory;
 
 /* Pointers to image data */
 uint16_t widths[SPRITE_COUNT];
@@ -41,14 +42,31 @@ typedef struct _image {
 } image_t;
 
 image_t images[] = {
-    {IMAGE_PATH "base.bmp", NULL},        {IMAGE_PATH "debug.bmp", NULL},
-    {IMAGE_PATH "void.bmp", NULL},        {IMAGE_PATH "cat.png", NULL},
-    {IMAGE_PATH "cat-explode.png", NULL}, {IMAGE_PATH "food.png", NULL},
-    {IMAGE_PATH "spaceship1.png", NULL},  {IMAGE_PATH "spaceship2.png", NULL},
-    {IMAGE_PATH "kennel4.png", NULL},     {IMAGE_PATH "kennel3.png", NULL},
-    {IMAGE_PATH "kennel2.png", NULL},     {IMAGE_PATH "kennel1.png", NULL},
-    {IMAGE_PATH "mouse.png", NULL},       {IMAGE_PATH "heart.png", NULL},
-    {IMAGE_PATH "empty_heart.png", NULL}, {IMAGE_PATH "gameover.png", NULL}};
+    {IMAGE_PATH "base.bmp", NULL},
+    {IMAGE_PATH "debug.bmp", NULL},
+    {IMAGE_PATH "void.bmp", NULL},
+    {IMAGE_PATH "cat.png", NULL},
+    {IMAGE_PATH "cat-explode.png", NULL},
+    {IMAGE_PATH "food.png", NULL},
+    {IMAGE_PATH "spaceship1.png", NULL},
+    {IMAGE_PATH "spaceship2.png", NULL},
+    {IMAGE_PATH "mouse.png", NULL},
+    {IMAGE_PATH "heart.png", NULL},
+    {IMAGE_PATH "empty_heart.png", NULL},
+    {IMAGE_PATH "gameover.png", NULL},
+    {IMAGE_PATH "win.png", NULL},
+    {IMAGE_PATH "start.png", NULL},
+    {IMAGE_PATH "kennel00.png", NULL},
+    {IMAGE_PATH "kennel01.png", NULL},
+    {IMAGE_PATH "kennel02.png", NULL},
+    {IMAGE_PATH "kennel03.png", NULL},
+    {IMAGE_PATH "kennel10.png", NULL},
+    {IMAGE_PATH "kennel11.png", NULL},
+    {IMAGE_PATH "kennel12.png", NULL},
+    {IMAGE_PATH "kennel20.png", NULL},
+    {IMAGE_PATH "kennel21.png", NULL},
+    {IMAGE_PATH "kennel30.png", NULL},
+};
 
 /* 0 If all is OK else 1 when application is destroying the main window */
 gboolean is_shutting_down = 0;
@@ -99,6 +117,10 @@ void setup_images() {
 /* Wrapper for update loop in assembly */
 void update_loop() {
     if (!is_shutting_down) {
+        if (*(long long *)(memory + ADDR_STOP) != 0) {
+            gtk_widget_destroy(main_window);
+            return;
+        }
         g_timeout_add(1000 / FPS_MAX, (GSourceFunc)update_loop, NULL);
         update(widths, heights, pixels, memory);
         gtk_image_set_from_pixbuf(GTK_IMAGE(image),
@@ -115,32 +137,34 @@ static void shutdown(GApplication *app) {
         if (images[i].pixbuf != NULL) g_object_unref(images[i].pixbuf);
 }
 
-/* Called by GTK3 when a key is pressed */
-int key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data) {
-    if (event->keyval == GDK_KEY_Q){
-        memory[ADDR_MOVE_LEFT] = 1;
-    }
-    else if (event->keyval == GDK_KEY_D){
-        memory[ADDR_MOVE_RIGHT] = 1;
-    }
-    else if (event->keyval == GDK_KEY_space){
-        memory[ADDR_SHOOT] = 1;
+/* Set key in memory */
+int set_key(int keyval, int value) {
+    switch (keyval) {
+        case GDK_KEY_Q:
+        case GDK_KEY_q:
+            memory[ADDR_MOVE_LEFT] = value;
+            break;
+        case GDK_KEY_D:
+        case GDK_KEY_d:
+            memory[ADDR_MOVE_RIGHT] = value;
+            break;
+        case GDK_KEY_space:
+            memory[ADDR_SHOOT] = value;
+            break;
     }
     return 0;
 }
 
+/* Called by GTK3 when a key is pressed */
+int key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data) {
+    printf("PRESSED : %s %d\n", gdk_keyval_name(event->keyval), event->keyval);
+    return set_key(event->keyval, 1);
+}
+
 /* Called by GTK3 when a key is released */
 int key_released(GtkWidget *widget, GdkEventKey *event, gpointer data) {
-    if (event->keyval == GDK_KEY_Q){
-        memory[ADDR_MOVE_LEFT] = 0;
-    }
-    else if (event->keyval == GDK_KEY_D){
-        memory[ADDR_MOVE_RIGHT] = 0;
-    }
-    else if (event->keyval == GDK_KEY_space){
-        memory[ADDR_SHOOT] = 0;
-    }
-    return 0;
+    printf("RELEASED : %s %d\n", gdk_keyval_name(event->keyval), event->keyval);
+    return set_key(event->keyval, 0);
 }
 
 /* Called when application is created */
@@ -158,11 +182,11 @@ static void activate(GApplication *app) {
 
     /*Add callback for key press*/
     g_signal_connect(GTK_WINDOW(main_window), "key-press-event",
-                     &key_pressed, NULL);
+                     G_CALLBACK(key_pressed), NULL);
     
     /*Add callback for key press*/
     g_signal_connect(GTK_WINDOW(main_window), "key-release-event",
-                     &key_released, NULL);
+                     G_CALLBACK(key_released), NULL);
 
     /* Add box for image */
     GtkWidget *box = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);

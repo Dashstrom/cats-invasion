@@ -9,12 +9,12 @@ CAT_SHOT_INTERVAL = 0x1ff
 CAT_SHOT_SPEED = 16
 PADDING_X = 8
 PADDING_Y = 8
-CAT_LINES = 5
-CAT_COLUMNS = 12
+CAT_LINES = 3
+CAT_COLUMNS = 5
 CAT_SPACE_X = 46
 CAT_SPACE_Y = 54
-SPACESHIP_SPEED = 6
-SPACESHIP_SHOT_SPEED = 32
+SPACESHIP_SPEED = 16
+SPACESHIP_SHOT_SPEED = 24
 SPACESHIP_SHOT_INTERVAL = 16
 SPACESHIP_LIFE = 3
 WIDTH_SCREEN = 800
@@ -29,14 +29,22 @@ CAT_EXPLODE_IMAGE = 4
 FOOD_IMAGE = 5
 SPACESHIP1_IMAGE = 6
 SPACESHIP2_IMAGE = 7
-KENNEL4_IMAGE = 8
-KENNEL3_IMAGE = 9
-KENNEL2_IMAGE = 10
-KENNEL1_IMAGE = 11
-MOUSE_IMAGE = 12
-HEART_IMAGE = 13
-EMPTY_HEART_IMAGE = 14
-GAMEOVER_IMAGE = 15
+MOUSE_IMAGE = 8
+HEART_IMAGE = 9
+EMPTY_HEART_IMAGE = 10
+GAMEOVER_IMAGE = 11
+WIN_IMAGE = 12
+START_IMAGE = 13
+KENNEL00_IMAGE = 14
+KENNEL01_IMAGE = 15
+KENNEL02_IMAGE = 16
+KENNEL03_IMAGE = 17
+KENNEL10_IMAGE = 18
+KENNEL11_IMAGE = 19
+KENNEL12_IMAGE = 20
+KENNEL20_IMAGE = 21
+KENNEL21_IMAGE = 22
+KENNEL30_IMAGE = 23
 
 /* Types */
 SPACESHIP_TYPE = 0
@@ -67,10 +75,10 @@ ADDR_MOVE_RIGHT = 25
 ADDR_SHOOT = 26
 ADDR_SPRITE_COUNT = 27
 ADDR_TICK = 35
-ADDR_CATS_COUNT = 43
 ADDR_CATS_MOVE = 51
 ADDR_CATS_DOWN = 52
-ADDR_SPRITE_LIST = 53
+ADDR_MENU = 53
+ADDR_SPRITE_LIST = 54
 ADDR_SPACESHIP = ADDR_SPRITE_LIST
 
 .text
@@ -123,6 +131,51 @@ _save_registers:
 
 
 /***********************************************************************
+  Main Start
+***********************************************************************/
+
+_start:
+        cmp     qword ptr [rcx + ADDR_START], 0
+        jne     _initialization
+
+        mov     r8, 0
+        mov     r9, 0
+        mov     r10, VOID_IMAGE
+        call    draw_image
+        mov     r10, START_IMAGE
+        call    draw_image
+
+
+/***********************************************************************
+  Menu state
+***********************************************************************/
+
+        /* Initilize menu and make a cooldown */
+_menu:
+        cmp     byte ptr [rcx + ADDR_MENU], 0
+        jne     _menu__else
+_menu__if_just_open_menu:
+        mov     qword ptr [rcx + ADDR_MENU], 1
+        mov     qword ptr [rcx + ADDR_TICK], 0
+_menu__else:
+
+        /* If cooldown is lower then 20 skip input */
+        cmp     qword ptr [rcx + ADDR_TICK], 20
+        jle     _update__end
+
+        /* Check keys, left for resart and right for leave */
+        cmp     byte ptr [rcx + ADDR_MOVE_LEFT], 0
+        jne     _initialization_init
+        cmp     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
+        jne     _menu_exit
+        jmp     _update__end
+_menu_exit:
+        mov     qword ptr [rcx + ADDR_STOP], 1
+        jmp     _update__end
+_menu_end:
+
+
+/***********************************************************************
   Initialization
 ***********************************************************************/
 
@@ -132,18 +185,19 @@ _initialization:
         cmp     r8, 0
         jne     _initialization__end
 
+_initialization_init:
         /* Initialization */
         mov     qword ptr [rcx + ADDR_START], 1
         mov     qword ptr [rcx + ADDR_STOP], 0
         mov     qword ptr [rcx + ADDR_SEED], DEFAULT_SEED
-        mov     byte ptr [rcx + ADDR_MOVE_LEFT], 1
-        mov     byte ptr [rcx + ADDR_MOVE_RIGHT], 1
-        mov     byte ptr [rcx + ADDR_SHOOT], 1
+        mov     byte ptr [rcx + ADDR_MOVE_LEFT], 0
+        mov     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
+        mov     byte ptr [rcx + ADDR_SHOOT], 0
         mov     qword ptr [rcx + ADDR_SPRITE_COUNT], 0
         mov     qword ptr [rcx + ADDR_TICK], 0
-        mov     qword ptr [rcx + ADDR_CATS_COUNT], 0
         mov     byte ptr [rcx + ADDR_CATS_MOVE], 1
         mov     byte ptr [rcx + ADDR_CATS_DOWN], 0
+        mov     byte ptr [rcx + ADDR_MENU], 0
 
         /* Create spaceship */
         mov     r9, 364                 # x
@@ -157,7 +211,7 @@ _initialization:
 
         /* Create kennel */
         mov     r10, 448                # y
-        mov     r11, KENNEL4_IMAGE      # image
+        mov     r11, KENNEL00_IMAGE     # image
         mov     r12, KENNEL_TYPE        # image
         mov     r13, 4                  # life
         mov     r14, 0                  # timeout
@@ -188,7 +242,7 @@ _initialization__create_cat_lines:
         mov     r9, (CAT_COLUMNS - 1) * CAT_SPACE_X + PADDING_X + 1
 
 _initialization__create_cat_columns:
-        call    randint
+        call    randint                 # r14 <- randint
         and     r14, CAT_SHOT_INTERVAL
         call    create_sprite
 
@@ -216,9 +270,54 @@ _gameover:
         mov     r10, GAMEOVER_IMAGE
         call    draw_image
 
-        jmp     _update__end
+        jmp     _menu
 
 _gameover__end:
+
+
+/***********************************************************************
+  Find min and max position of cats
+***********************************************************************/
+
+_max_min_cat:
+        mov     r12w, WIDTH_SCREEN
+        mov     r13w, 0
+        mov     r14w, 0
+        lea     r10, [rip + _max_min_cat__callback]
+        mov     r11, CAT_TYPE
+        call    apply_sprites
+        jmp     _max_min_cat__end
+
+_max_min_cat__callback:
+        mov     r9w, word ptr [r8 + SPRITE_X]
+        cmp     r12w, r9w
+        cmovg   r12w, r9w
+        add     r9w, word ptr [r8 + SPRITE_W]
+        cmp     r13w, r9w
+        cmovl   r13w, r9w
+        inc     r14w
+        ret
+
+_max_min_cat__end:
+
+/***********************************************************************
+  Winned
+***********************************************************************/
+
+_win:
+        cmp     r12w, WIDTH_SCREEN
+        jne     _win__end
+        cmp     r13w, 0
+        jne     _win__end
+
+        mov     r8, 0
+        mov     r9, 0
+        mov     r10, WIN_IMAGE
+        call    draw_image
+
+        jmp     _menu
+
+_win__end:
 
 
 /***********************************************************************
@@ -264,12 +363,22 @@ _spaceship_shoot__if_shoot_cooldown_eq_0:
         mov     r10w, word ptr[rcx + ADDR_SPACESHIP + SPRITE_Y]
         sub     r10w, word ptr[rsi + FOOD_IMAGE * 2]
 
+        push    r11
+        push    r12
+        push    r13
+        push    r14
+        push    r15
         mov     r11, FOOD_IMAGE         # image
         mov     r12, FOOD_TYPE          # type
         mov     r13, 1                  # life
         mov     r14, 0                  # timeout
-        mov     r15, 0                  # data
+        mov     r15, 0                  # dataq
         call    create_sprite
+        pop     r15
+        pop     r14
+        pop     r13
+        pop     r12
+        pop     r11
 
 _spaceship_shoot__elif_not_shooting_and_cooldown_ne_0:
         sub qword ptr[rcx + ADDR_SPACESHIP + SPRITE_TIMEOUT], 1
@@ -285,7 +394,7 @@ _spaceship_move:
         cmp     byte ptr [rcx + ADDR_MOVE_LEFT], 0
         je      __spaceship_move__right
         cmp     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
-        jne      _spaceship_move__end
+        jne     _spaceship_move__end
 
 __spaceship_move__left:
         sub     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], SPACESHIP_SPEED
@@ -307,32 +416,6 @@ __spaceship_move__right:
         mov     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], ax
 
 _spaceship_move__end:
-
-
-/***********************************************************************
-  Find min and max position of cats
-***********************************************************************/
-
-_max_min_cat:
-        mov     r12w, WIDTH_SCREEN
-        mov     r13w, 0
-        mov     r14w, 0
-        lea     r10, [rip + _max_min_cat__callback]
-        mov     r11, CAT_TYPE
-        call    apply_sprites
-        jmp     __max_min_cat__end
-
-_max_min_cat__callback:
-        mov     r9w, word ptr [r8 + SPRITE_X]
-        cmp     r12w, r9w
-        cmovg   r12w, r9w
-        add     r9w, word ptr [r8 + SPRITE_W]
-        cmp     r13w, r9w
-        cmovl   r13w, r9w
-        inc     r14w
-        ret
-
-__max_min_cat__end:
 
 
 /***********************************************************************
@@ -624,6 +707,41 @@ _interaction__kennel_mouse:
         sub     word ptr [r8 + SPRITE_LIFE],  1
         sub     word ptr [r10 + SPRITE_LIFE], 1
 
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL00_IMAGE
+        jne     _interaction__kennel_mouse_skip_00
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL01_IMAGE
+        jmp     _interaction__kennel_mouse_skip_end
+_interaction__kennel_mouse_skip_00:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL01_IMAGE
+        jne     _interaction__kennel_mouse_skip_01
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL02_IMAGE
+        jmp     _interaction__kennel_mouse_skip_end
+_interaction__kennel_mouse_skip_01:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL02_IMAGE
+        jne     _interaction__kennel_mouse_skip_02
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL03_IMAGE
+        jmp     _interaction__kennel_mouse_skip_end
+_interaction__kennel_mouse_skip_02:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL10_IMAGE
+        jne     _interaction__kennel_mouse_skip_10
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL11_IMAGE
+        jmp     _interaction__kennel_mouse_skip_end
+_interaction__kennel_mouse_skip_10:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL11_IMAGE
+        jne     _interaction__kennel_mouse_skip_11
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL12_IMAGE
+        jmp     _interaction__kennel_mouse_skip_end
+_interaction__kennel_mouse_skip_11:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL20_IMAGE
+        jne     _interaction__kennel_mouse_skip_end
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL21_IMAGE
+_interaction__kennel_mouse_skip_end:
+
 _interaction__kennel_mouse_end:
 
 
@@ -651,15 +769,51 @@ _interaction__food_cat:
 _interaction__food_cat_end:
 
 
-_interaction__food_kennel:
+_interaction__kennel_food:
         cmp     word ptr [r8 + SPRITE_TYPE], FOOD_TYPE
-        jne     _interaction__food_kennel_end
+        jne     _interaction__kennel_food_end
         cmp     word ptr [r10 + SPRITE_TYPE], KENNEL_TYPE
-        jne     _interaction__food_kennel_end
+        jne     _interaction__kennel_food_end
 
         sub     word ptr [r8 + SPRITE_LIFE],  1
+        sub     word ptr [r10 + SPRITE_LIFE],  1
 
-_interaction__food_kennel_end:
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL00_IMAGE
+        jne     _interaction__kennel_food_skip_00
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL10_IMAGE
+        jmp     _interaction__kennel_food_skip_end
+_interaction__kennel_food_skip_00:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL10_IMAGE
+        jne     _interaction__kennel_food_skip_10
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL20_IMAGE
+        jmp     _interaction__kennel_food_skip_end
+_interaction__kennel_food_skip_10:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL20_IMAGE
+        jne     _interaction__kennel_food_skip_20
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL30_IMAGE
+        jmp     _interaction__kennel_food_skip_end
+_interaction__kennel_food_skip_20:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL01_IMAGE
+        jne     _interaction__kennel_food_skip_01
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL11_IMAGE
+        jmp     _interaction__kennel_food_skip_end
+_interaction__kennel_food_skip_01:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL11_IMAGE
+        jne     _interaction__kennel_food_skip_11
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL21_IMAGE
+        jmp     _interaction__kennel_food_skip_end
+_interaction__kennel_food_skip_11:
+
+        cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL02_IMAGE
+        jne     _interaction__kennel_food_skip_end
+        mov     word ptr [r10 + SPRITE_IMAGE], KENNEL12_IMAGE
+_interaction__kennel_food_skip_end:
+
+_interaction__kennel_food_end:
 
 
 _interaction__cat_spaceship:
@@ -705,45 +859,6 @@ _interaction__if_not_intersect:
 
 
 /***********************************************************************
-  Update kennel
-***********************************************************************/
-
-_update_kennel:
-        lea     r10, [rip + _update_kennel__callback]
-        mov     r11, KENNEL_TYPE
-        call    apply_sprites
-        jmp     _update_kennel__end
-
-_update_kennel__callback:
-        cmp     word ptr [r8 + SPRITE_LIFE], 1
-        jg     _update_kennel__callback_kennel_2
-
-_update_kennel__callback_kennel_1:
-        mov     word ptr [r8 + SPRITE_IMAGE], KENNEL1_IMAGE
-        jmp     _update_kennel__callback_end
-
-_update_kennel__callback_kennel_2:
-        cmp     word ptr [r8 + SPRITE_LIFE], 2
-        jg      _update_kennel__callback_kennel_3
-        mov     word ptr [r8 + SPRITE_IMAGE], KENNEL2_IMAGE
-        jmp     _update_kennel__callback_end
-
-_update_kennel__callback_kennel_3:
-        cmp     word ptr [r8 + SPRITE_LIFE], 3
-        jg      _update_kennel__callback_kennel_4
-        mov     word ptr [r8 + SPRITE_IMAGE], KENNEL3_IMAGE
-        jmp     _update_kennel__callback_end
-
-_update_kennel__callback_kennel_4:
-        mov     word ptr [r8 + SPRITE_IMAGE], KENNEL4_IMAGE
-
-_update_kennel__callback_end:
-        ret
-
-_update_kennel__end:
-
-
-/***********************************************************************
   Loop for deletion
 ***********************************************************************/
 
@@ -785,7 +900,7 @@ _deletion__end:
 
 
 /***********************************************************************
-  Draw all sprites : TODO invert this
+  Draw all sprites
 ***********************************************************************/
 
 _draw_sprites:
@@ -913,7 +1028,7 @@ randint:
 
 apply_sprites:
  /***************
-  * Run a callback on every sprite iwth a given type.
+  * Run a callback on every sprite with a given type.
   * Needed registers :
   *     r10 : callback (r8 : actual sprite, dont touch to r9)
   *     r11 : type
@@ -963,7 +1078,7 @@ _apply_sprites__if_type_not_match:
 
 create_sprite:
  /***************
-  * Create a sprite
+  * Create a sprite and insert it in sprite list
   * Needed registers :
   *      rdi : images widths
   *      rsi : images heights
@@ -1005,7 +1120,7 @@ create_sprite:
 
 delete_sprite:
  /***************
-  * Create a sprite
+  * Delete sprite in sprite list.
   * Needed registers :
   *      rcx : data memory
   *      r8  : sprite to delete

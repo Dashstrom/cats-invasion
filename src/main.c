@@ -8,19 +8,20 @@
 #include <time.h>
 
 /* App settings */
-#define SPRITE_COUNT 24
+#define SPRITE_COUNT 23
 #define BACKGROUD_INDEX 0
-#define ICON_INDEX 7
-#define APP_NAME "Space Invaders"
+#define ICON_INDEX 6
+#define APP_NAME "Cats Invasion"
+#define APP_ID "fr.dashstrom.cats-invasion"
 #define APP_WIDTH 800
 #define APP_HEIGHT 600
 #define APP_MEMORY 32000
 #define FPS_MAX 13
-#define IMAGE_PATH "/sprites/data/images/"
-#define ADDR_STOP 8
-#define ADDR_MOVE_LEFT 24
-#define ADDR_MOVE_RIGHT 25
-#define ADDR_SHOOT 26
+#define IMAGE_PATH "/data/images/"
+#define ADDR_STOP 1
+#define ADDR_MOVE_LEFT 3
+#define ADDR_MOVE_RIGHT 4
+#define ADDR_SHOOT 5
 
 /* Pointer to the memory area */
 unsigned char *memory;
@@ -46,7 +47,6 @@ image_t images[] = {
     {IMAGE_PATH "debug.bmp", NULL},
     {IMAGE_PATH "void.bmp", NULL},
     {IMAGE_PATH "cat.png", NULL},
-    {IMAGE_PATH "cat-explode.png", NULL},
     {IMAGE_PATH "food.png", NULL},
     {IMAGE_PATH "spaceship1.png", NULL},
     {IMAGE_PATH "spaceship2.png", NULL},
@@ -117,7 +117,7 @@ void setup_images() {
 /* Wrapper for update loop in assembly */
 void update_loop() {
     if (!is_shutting_down) {
-        if (*(long long *)(memory + ADDR_STOP) != 0) {
+        if (memory[ADDR_STOP] != 0) {
             gtk_widget_destroy(main_window);
             return;
         }
@@ -157,13 +157,11 @@ int set_key(int keyval, int value) {
 
 /* Called by GTK3 when a key is pressed */
 int key_pressed(GtkWidget *widget, GdkEventKey *event, gpointer data) {
-    printf("PRESSED : %s %d\n", gdk_keyval_name(event->keyval), event->keyval);
     return set_key(event->keyval, 1);
 }
 
 /* Called by GTK3 when a key is released */
 int key_released(GtkWidget *widget, GdkEventKey *event, gpointer data) {
-    printf("RELEASED : %s %d\n", gdk_keyval_name(event->keyval), event->keyval);
     return set_key(event->keyval, 0);
 }
 
@@ -214,8 +212,7 @@ static void activate(GApplication *app) {
 
 /* Entry point */
 int main(int argc, char *argv[]) {
-    GtkApplication *app =
-        gtk_application_new("fr.dashstrom.space-invaders-asm", 0);
+    GtkApplication *app = gtk_application_new(APP_ID, 0);
     g_signal_connect(app, "activate", G_CALLBACK(activate), NULL);
     int status = g_application_run(G_APPLICATION(app), argc, argv);
     g_object_unref(app);

@@ -1,90 +1,5 @@
-.file "update.S"
-.intel_syntax noprefix
-
-.data
-
-/* Configuration */
-DEFAULT_SEED = 625726124
-CAT_SHOT_INTERVAL = 0x1ff
-CAT_SHOT_SPEED = 16
-PADDING_X = 8
-PADDING_Y = 8
-CAT_LINES = 3
-CAT_COLUMNS = 5
-CAT_SPACE_X = 46
-CAT_SPACE_Y = 54
-SPACESHIP_SPEED = 16
-SPACESHIP_SHOT_SPEED = 24
-SPACESHIP_SHOT_INTERVAL = 16
-SPACESHIP_LIFE = 3
-WIDTH_SCREEN = 800
-HEIGHT_SCREEN = 600
-
-/* Image indexes */
-BASE_IMAGE = 0
-DEBUG_IMAGE = 1
-VOID_IMAGE = 2
-CAT_IMAGE = 3
-CAT_EXPLODE_IMAGE = 4
-FOOD_IMAGE = 5
-SPACESHIP1_IMAGE = 6
-SPACESHIP2_IMAGE = 7
-MOUSE_IMAGE = 8
-HEART_IMAGE = 9
-EMPTY_HEART_IMAGE = 10
-GAMEOVER_IMAGE = 11
-WIN_IMAGE = 12
-START_IMAGE = 13
-KENNEL00_IMAGE = 14
-KENNEL01_IMAGE = 15
-KENNEL02_IMAGE = 16
-KENNEL03_IMAGE = 17
-KENNEL10_IMAGE = 18
-KENNEL11_IMAGE = 19
-KENNEL12_IMAGE = 20
-KENNEL20_IMAGE = 21
-KENNEL21_IMAGE = 22
-KENNEL30_IMAGE = 23
-
-/* Types */
-SPACESHIP_TYPE = 0
-CAT_TYPE = 1
-KENNEL_TYPE = 2
-FOOD_TYPE = 3
-MOUSE_TYPE = 4
-
-/* Relatives addresses to sprite  */
-SPRITE_X = 0
-SPRITE_Y = 2
-SPRITE_W = 4
-SPRITE_H = 6
-SPRITE_IMAGE = 8
-SPRITE_TYPE = 10
-SPRITE_LIFE = 12
-SPRITE_DAMAGE = 14
-SPRITE_TIMEOUT = 16
-SPRITE_DATA = 24
-SPRITE_SIZE = 32
-
-/* Relatives addresses to rcx */
-ADDR_START = 0
-ADDR_STOP = 8
-ADDR_SEED = 16
-ADDR_MOVE_LEFT = 24
-ADDR_MOVE_RIGHT = 25
-ADDR_SHOOT = 26
-ADDR_SPRITE_COUNT = 27
-ADDR_TICK = 35
-ADDR_CATS_MOVE = 51
-ADDR_CATS_DOWN = 52
-ADDR_MENU = 53
-ADDR_SPRITE_LIST = 54
-ADDR_SPACESHIP = ADDR_SPRITE_LIST
-
-.text
-
 /***********************************************************************
-  Sous-programme process_image_asm 
+  Sous-programme update 
     
   Réalise le traitement d'une image 32 bits.
   
@@ -102,6 +17,88 @@ L'image de fond se trouve dans le premier élément
   si vous les utilisez (sauvegarde par l'appelé). Les autres registres 
   peuvent être modifiés sans risque (sauvegardés par l'appelant).
 ***********************************************************************/
+
+.file "update.S"
+.intel_syntax noprefix
+
+.data
+
+/* Configuration */
+BASE_SEED = 625726124
+MOUSE_SPEED = 16
+FOOD_SPEED = 24
+SPACESHIP_SPEED = 16
+SPACESHIP_SHOT_INTERVAL = 16
+SPACESHIP_LIFE = 3
+CAT_SHOT_INTERVAL = 0x1ff       # Must be a mask
+CAT_LINES = 4
+CAT_COLUMNS = 10
+CAT_SPACE_X = 46
+CAT_SPACE_Y = 54
+PADDING_X = 8
+PADDING_Y = 8
+WIDTH_SCREEN = 800
+HEIGHT_SCREEN = 600
+
+/* Image indexes */
+BASE_IMAGE = 0
+DEBUG_IMAGE = 1
+VOID_IMAGE = 2
+CAT_IMAGE = 3
+FOOD_IMAGE = 4
+SPACESHIP1_IMAGE = 5
+SPACESHIP2_IMAGE = 6
+MOUSE_IMAGE = 7
+HEART_IMAGE = 8
+EMPTY_HEART_IMAGE = 9
+GAMEOVER_IMAGE = 10
+WIN_IMAGE = 11
+START_IMAGE = 12
+KENNEL00_IMAGE = 13
+KENNEL01_IMAGE = 14
+KENNEL02_IMAGE = 15
+KENNEL03_IMAGE = 16
+KENNEL10_IMAGE = 17
+KENNEL11_IMAGE = 18
+KENNEL12_IMAGE = 19
+KENNEL20_IMAGE = 20
+KENNEL21_IMAGE = 21
+KENNEL30_IMAGE = 22
+
+/* Types */
+SPACESHIP_TYPE = 0
+CAT_TYPE = 1
+KENNEL_TYPE = 2
+FOOD_TYPE = 3
+MOUSE_TYPE = 4
+
+/* Relatives addresses to sprite  */
+SPRITE_X = 0            # 2
+SPRITE_Y = 2            # 2
+SPRITE_W = 4            # 2
+SPRITE_H = 6            # 2
+SPRITE_IMAGE = 8        # 2
+SPRITE_TYPE = 10        # 2
+SPRITE_LIFE = 12        # 2
+SPRITE_TIMEOUT = 14     # 8
+SPRITE_SIZE = 22        # 8
+
+/* Relatives addresses to rcx */
+ADDR_START = 0          # 1
+ADDR_STOP = 1           # 1
+ADDR_MENU = 2           # 1
+ADDR_MOVE_LEFT = 3      # 1
+ADDR_MOVE_RIGHT = 4     # 1
+ADDR_SHOOT = 5          # 1
+ADDR_CATS_MOVE = 6      # 1
+ADDR_CATS_DOWN = 7      # 1
+ADDR_SPRITE_COUNT = 8   # 8
+ADDR_TICK = 16          # 8
+ADDR_SEED = 24          # 8
+ADDR_SPRITE_LIST = 32   # 8
+ADDR_SPACESHIP = ADDR_SPRITE_LIST
+
+.text
 
 .global update
 update:
@@ -135,7 +132,7 @@ _save_registers:
 ***********************************************************************/
 
 _start:
-        cmp     qword ptr [rcx + ADDR_START], 0
+        cmp     byte ptr [rcx + ADDR_START], 0
         jne     _initialization
 
         mov     r8, 0
@@ -150,12 +147,12 @@ _start:
   Menu state
 ***********************************************************************/
 
-        /* Initilize menu and make a cooldown */
+        /* Initilize menu and do a cooldown */
 _menu:
         cmp     byte ptr [rcx + ADDR_MENU], 0
         jne     _menu__else
 _menu__if_just_open_menu:
-        mov     qword ptr [rcx + ADDR_MENU], 1
+        mov     byte ptr [rcx + ADDR_MENU], 1
         mov     qword ptr [rcx + ADDR_TICK], 0
 _menu__else:
 
@@ -170,7 +167,7 @@ _menu__else:
         jne     _menu_exit
         jmp     _update__end
 _menu_exit:
-        mov     qword ptr [rcx + ADDR_STOP], 1
+        mov     byte ptr [rcx + ADDR_STOP], 1
         jmp     _update__end
 _menu_end:
 
@@ -181,23 +178,28 @@ _menu_end:
 
 _initialization:
         /* Check if init */
-        mov     r8, qword ptr [rcx + ADDR_START]
+        movzx   r8, byte ptr [rcx + ADDR_START]
         cmp     r8, 0
         jne     _initialization__end
 
 _initialization_init:
+
+        /* Genrate seed from menu ticks */
+        mov     rax, BASE_SEED
+        add     rax, qword ptr [rcx + ADDR_TICK]
+        mov     qword ptr [rcx + ADDR_SEED], rax
+
         /* Initialization */
-        mov     qword ptr [rcx + ADDR_START], 1
-        mov     qword ptr [rcx + ADDR_STOP], 0
-        mov     qword ptr [rcx + ADDR_SEED], DEFAULT_SEED
+        mov     byte ptr [rcx + ADDR_START], 1
+        mov     byte ptr [rcx + ADDR_STOP], 0
+        mov     byte ptr [rcx + ADDR_MENU], 0
         mov     byte ptr [rcx + ADDR_MOVE_LEFT], 0
         mov     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
         mov     byte ptr [rcx + ADDR_SHOOT], 0
-        mov     qword ptr [rcx + ADDR_SPRITE_COUNT], 0
-        mov     qword ptr [rcx + ADDR_TICK], 0
         mov     byte ptr [rcx + ADDR_CATS_MOVE], 1
         mov     byte ptr [rcx + ADDR_CATS_DOWN], 0
-        mov     byte ptr [rcx + ADDR_MENU], 0
+        mov     qword ptr [rcx + ADDR_SPRITE_COUNT], 0
+        mov     qword ptr [rcx + ADDR_TICK], 0
 
         /* Create spaceship */
         mov     r9, 364                 # x
@@ -206,7 +208,6 @@ _initialization_init:
         mov     r12, SPACESHIP_TYPE     # image
         mov     r13, SPACESHIP_LIFE     # life
         mov     r14, 0                  # timeout
-        mov     r15, 0                  # data
         call    create_sprite
 
         /* Create kennel */
@@ -215,7 +216,6 @@ _initialization_init:
         mov     r12, KENNEL_TYPE        # image
         mov     r13, 4                  # life
         mov     r14, 0                  # timeout
-        mov     r15, 0                  # data
 
         mov     r9, 128                 # x
         call    create_sprite
@@ -280,6 +280,7 @@ _gameover__end:
 ***********************************************************************/
 
 _max_min_cat:
+        /* Init r12 = max, r13 = max, r14 = count */
         mov     r12w, WIDTH_SCREEN
         mov     r13w, 0
         mov     r14w, 0
@@ -301,14 +302,12 @@ _max_min_cat__callback:
 _max_min_cat__end:
 
 /***********************************************************************
-  Winned
+  Check win
 ***********************************************************************/
 
 _win:
-        cmp     r12w, WIDTH_SCREEN
-        jne     _win__end
-        cmp     r13w, 0
-        jne     _win__end
+        cmp     r14w, 0         # Win if cat count <= 0
+        jg      _win__end
 
         mov     r8, 0
         mov     r9, 0
@@ -325,7 +324,7 @@ _win__end:
 ***********************************************************************/
 
 _spaceship_animation:
-        mov     r8b, byte ptr [rcx + ADDR_TICK]
+        mov     r8b, byte ptr [rcx + ADDR_TICK]         # we dont care about upper bytes
         and     r8b, 2
         cmp     r8b, 0
         jne     _spaceship_animation__else
@@ -367,14 +366,13 @@ _spaceship_shoot__if_shoot_cooldown_eq_0:
         push    r12
         push    r13
         push    r14
-        push    r15
+
         mov     r11, FOOD_IMAGE         # image
         mov     r12, FOOD_TYPE          # type
         mov     r13, 1                  # life
         mov     r14, 0                  # timeout
-        mov     r15, 0                  # dataq
         call    create_sprite
-        pop     r15
+
         pop     r14
         pop     r13
         pop     r12
@@ -398,6 +396,7 @@ _spaceship_move:
 
 __spaceship_move__left:
         sub     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], SPACESHIP_SPEED
+        /* Check if spaceship is outside on the left */
         cmp     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], PADDING_X
         jge     _spaceship_move__end
         mov     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], PADDING_X
@@ -407,6 +406,7 @@ __spaceship_move__right:
         cmp     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
         je      _spaceship_move__end
         add     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], SPACESHIP_SPEED
+        /* Check if spaceship is outside on the right */
         mov     ax, word ptr [rcx + ADDR_SPACESHIP + SPRITE_X]
         add     ax, word ptr [rcx + ADDR_SPACESHIP + SPRITE_W]
         cmp     ax, WIDTH_SCREEN - PADDING_X
@@ -523,11 +523,10 @@ _update_cat__callback:
         push    r12
         push    r13
         push    r14
-        push    r15
 
         mov     r9w, word ptr [r8 + SPRITE_W]   # x
         ror     r9w, 1
-        add     r9w, word ptr [r8 + SPRITE_X]
+        add     r9w, word ptr [r8 + SPRITE_X]   # x
 
         mov     r10w, word ptr [r8 + SPRITE_H]  # y
         ror     r10w, 1
@@ -538,10 +537,8 @@ _update_cat__callback:
         mov     r12, MOUSE_TYPE         # type
         mov     r13, 1                  # life
         mov     r14, 0                  # timeout
-        mov     r15, 0                  # data
         call    create_sprite
         
-        pop     r15
         pop     r14
         pop     r13
         pop     r12
@@ -589,7 +586,10 @@ _update_mouse:
         jmp     _update_mouse__end
 
 _update_mouse__callback:
-        add     word ptr [r8 + SPRITE_Y], CAT_SHOT_SPEED
+        /* Move mouse */
+        add     word ptr [r8 + SPRITE_Y], MOUSE_SPEED
+
+        /* Kill mouse if ouside screen */
         mov     r10w, word ptr [r8 + SPRITE_Y]
         add     r10w, word ptr [r8 + SPRITE_H]
         cmp     r10w, HEIGHT_SCREEN
@@ -615,7 +615,7 @@ _update_food:
         jmp     _update_food__end
 
 _update_food__callback:
-        sub     word ptr [r8 + SPRITE_Y], SPACESHIP_SHOT_SPEED
+        sub     word ptr [r8 + SPRITE_Y], FOOD_SPEED
         cmp     word ptr [r8 + SPRITE_Y], 0
         jge     _update_food__callback__else
 
@@ -907,6 +907,7 @@ _draw_sprites:
         mov     r11, rcx
         add     r11, ADDR_SPRITE_LIST
         mov     r12, qword ptr [rcx + ADDR_SPRITE_COUNT]
+        dec     r12     # TODO: check if bug come from this
 
 _draw_sprites__for_sprite_in_sprites:
 
@@ -1075,7 +1076,6 @@ _apply_sprites__if_type_not_match:
         ret
 
 
-
 create_sprite:
  /***************
   * Create a sprite and insert it in sprite list
@@ -1089,7 +1089,6 @@ create_sprite:
   *      r12 : type
   *      r13 : life
   *      r14 : timeout
-  *      r15 : 8 bytes embed data
   * Return registers :
   *      r8  : new data pointer
   ***************/
@@ -1110,7 +1109,6 @@ create_sprite:
         mov     word  ptr [r8 + SPRITE_TYPE], r12w      # sprite type
         mov     word  ptr [r8 + SPRITE_LIFE], r13w      # sprite life
         mov     qword ptr [r8 + SPRITE_TIMEOUT], r14    # sprite timeout
-        mov     qword ptr [r8 + SPRITE_DATA], r15       # sprite data
         add     qword ptr [rcx + ADDR_SPRITE_COUNT], 1
 
         pop     rax

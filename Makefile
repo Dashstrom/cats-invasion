@@ -8,7 +8,7 @@ GTK_LIB = $(shell $(PKGCONFIG) --libs gtk+-3.0)
 SOURCEDIR = src
 BUILDDIR = build
 IMAGEDIR = data/images
-EXECUTABLE = SpaceInvaders
+EXECUTABLE = CatsInvasion
 
 RESOURCES_XML = data/resources.xml
 RESOURCES_SOURCE = build/resources.c

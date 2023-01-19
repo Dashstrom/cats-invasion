@@ -1,11 +1,10 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <gresources>
-    <gresource prefix="sprites">
+    <gresource>
         <file>data/images/base.bmp</file>
         <file>data/images/debug.bmp</file>
         <file>data/images/void.bmp</file>
         <file>data/images/cat.png</file>
-        <file>data/images/cat-explode.png</file>
         <file>data/images/food.png</file>
         <file>data/images/spaceship1.png</file>
         <file>data/images/spaceship2.png</file>

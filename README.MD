@@ -1,6 +1,10 @@
-# Space Invaders asm
+# Cats Invasion
 
-Space invaders in assembly.
+Space invaders like with cats programmed assembly language.
+
+## Preview
+
+![preview.png](data/preview/preview.png)
 
 ## Build
 
@@ -11,17 +15,23 @@ sudo apt-get install libgtk-3-dev make
 make
 ```
 
+If you change an image, you need to clean the project before with the following comand :
+
+```sh
+make clean
+```
+
 ## Run
 
 ```sh
 ./build/SpaceInvaders
 ```
 
-## Convention
+## Developpement
 
 - Indentation : `8 spaces`
 - Label : `snake_case`
-- Inner label : `function__[if|for|while][...]`
+- Inner label : `_function__[if|for|while][...]`
 
 ## Attribution
 

@@ -47,3 +47,7 @@ $(ASM_OBJECTS): $(BUILDDIR)/%.o : $(SOURCEDIR)/%.S
 .phony: clean
 clean:
 	rm -rf $(BUILDDIR)
+
+.phony: archive
+archive:
+	tar czvf cats-invasion.tar.gz data src .gitignore Makefile README.md

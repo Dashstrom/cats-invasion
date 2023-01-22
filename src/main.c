@@ -16,7 +16,7 @@
 #define APP_WIDTH 800
 #define APP_HEIGHT 600
 #define APP_MEMORY 32000
-#define FPS_MAX 13
+#define FPS_MAX 15
 #define IMAGE_PATH "/data/images/"
 #define ADDR_STOP 1
 #define ADDR_MOVE_LEFT 3

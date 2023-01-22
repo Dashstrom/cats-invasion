@@ -24,7 +24,7 @@ L'image de fond se trouve dans le premier élément
 .data
 
 /* Configuration */
-BASE_SEED = 625726124
+BASE_SEED = 625726124           # Base for create speed for the LCG
 MOUSE_SPEED = 16
 FOOD_SPEED = 24
 SPACESHIP_SPEED = 16
@@ -37,6 +37,7 @@ CAT_SPACE_X = 46
 CAT_SPACE_Y = 54
 PADDING_X = 8
 PADDING_Y = 8
+MENU_COOLDOWN = 20
 WIDTH_SCREEN = 800
 HEIGHT_SCREEN = 600
 
@@ -73,29 +74,29 @@ FOOD_TYPE = 3
 MOUSE_TYPE = 4
 
 /* Relatives addresses to sprite  */
-SPRITE_X = 0            # 2
-SPRITE_Y = 2            # 2
-SPRITE_W = 4            # 2
-SPRITE_H = 6            # 2
-SPRITE_IMAGE = 8        # 2
-SPRITE_TYPE = 10        # 2
-SPRITE_LIFE = 12        # 2
-SPRITE_TIMEOUT = 14     # 8
-SPRITE_SIZE = 22        # 8
+SPRITE_X = 0            # 2 bytes
+SPRITE_Y = 2            # 2 bytes
+SPRITE_W = 4            # 2 bytes
+SPRITE_H = 6            # 2 bytes
+SPRITE_IMAGE = 8        # 2 bytes
+SPRITE_TYPE = 10        # 2 bytes
+SPRITE_LIFE = 12        # 2 bytes
+SPRITE_TIMEOUT = 14     # 8 bytes
+SPRITE_SIZE = 22        # 8 bytes
 
 /* Relatives addresses to rcx */
-ADDR_START = 0          # 1
-ADDR_STOP = 1           # 1
-ADDR_MENU = 2           # 1
-ADDR_MOVE_LEFT = 3      # 1
-ADDR_MOVE_RIGHT = 4     # 1
-ADDR_SHOOT = 5          # 1
-ADDR_CATS_MOVE = 6      # 1
-ADDR_CATS_DOWN = 7      # 1
-ADDR_SPRITE_COUNT = 8   # 8
-ADDR_TICK = 16          # 8
-ADDR_SEED = 24          # 8
-ADDR_SPRITE_LIST = 32   # 8
+ADDR_START = 0          # 1 byte
+ADDR_STOP = 1           # 1 byte
+ADDR_MENU = 2           # 1 byte
+ADDR_MOVE_LEFT = 3      # 1 byte
+ADDR_MOVE_RIGHT = 4     # 1 byte
+ADDR_SHOOT = 5          # 1 byte
+ADDR_CATS_MOVE = 6      # 1 byte
+ADDR_CATS_DOWN = 7      # 1 byte
+ADDR_SPRITE_COUNT = 8   # 8 bytes
+ADDR_TICK = 16          # 8 bytes
+ADDR_SEED = 24          # 8 bytes
+ADDR_SPRITE_LIST = 32   # 8 bytes
 ADDR_SPACESHIP = ADDR_SPRITE_LIST
 
 .text
@@ -132,9 +133,11 @@ _save_registers:
 ***********************************************************************/
 
 _start:
+        /* Check if game is running */
         cmp     byte ptr [rcx + ADDR_START], 0
         jne     _initialization
 
+        /* If the game is not running, display menu */
         mov     r8, 0
         mov     r9, 0
         mov     r10, VOID_IMAGE
@@ -142,9 +145,11 @@ _start:
         mov     r10, START_IMAGE
         call    draw_image
 
+        # jmp _menu 
+
 
 /***********************************************************************
-  Menu state
+  Handle menu keyboard
 ***********************************************************************/
 
         /* Initilize menu and do a cooldown */
@@ -152,12 +157,13 @@ _menu:
         cmp     byte ptr [rcx + ADDR_MENU], 0
         jne     _menu__else
 _menu__if_just_open_menu:
+        /* Menu Initialization  */
         mov     byte ptr [rcx + ADDR_MENU], 1
         mov     qword ptr [rcx + ADDR_TICK], 0
 _menu__else:
 
         /* If cooldown is lower then 20 skip input */
-        cmp     qword ptr [rcx + ADDR_TICK], 20
+        cmp     qword ptr [rcx + ADDR_TICK], MENU_COOLDOWN
         jle     _update__end
 
         /* Check keys, left for resart and right for leave */
@@ -173,18 +179,17 @@ _menu_end:
 
 
 /***********************************************************************
-  Initialization
+  Game initialization
 ***********************************************************************/
 
 _initialization:
-        /* Check if init */
-        movzx   r8, byte ptr [rcx + ADDR_START]
-        cmp     r8, 0
+        /* Check if game is running */
+        cmp     byte ptr [rcx + ADDR_START], 0
         jne     _initialization__end
 
 _initialization_init:
 
-        /* Genrate seed from menu ticks */
+        /* Generate seed from menu ticks */
         mov     rax, BASE_SEED
         add     rax, qword ptr [rcx + ADDR_TICK]
         mov     qword ptr [rcx + ADDR_SEED], rax
@@ -205,7 +210,7 @@ _initialization_init:
         mov     r9, 364                 # x
         mov     r10, 528                # y
         mov     r11, SPACESHIP1_IMAGE   # image
-        mov     r12, SPACESHIP_TYPE     # image
+        mov     r12, SPACESHIP_TYPE     # type
         mov     r13, SPACESHIP_LIFE     # life
         mov     r14, 0                  # timeout
         call    create_sprite
@@ -213,7 +218,7 @@ _initialization_init:
         /* Create kennel */
         mov     r10, 448                # y
         mov     r11, KENNEL00_IMAGE     # image
-        mov     r12, KENNEL_TYPE        # image
+        mov     r12, KENNEL_TYPE        # type
         mov     r13, 4                  # life
         mov     r14, 0                  # timeout
 
@@ -236,11 +241,12 @@ _initialization_init:
         mov     r14, 0                  # timeout
         mov     r15, 0                  # data
 
+        /* Iterate over lines */
         mov     r10, (CAT_LINES - 1) * CAT_SPACE_Y + PADDING_Y + 40
-
 _initialization__create_cat_lines:
-        mov     r9, (CAT_COLUMNS - 1) * CAT_SPACE_X + PADDING_X + 1
 
+        /* Iterate over columns */
+        mov     r9, (CAT_COLUMNS - 1) * CAT_SPACE_X + PADDING_X + 1
 _initialization__create_cat_columns:
         call    randint                 # r14 <- randint
         and     r14, CAT_SHOT_INTERVAL
@@ -262,9 +268,11 @@ _initialization__end:
 ***********************************************************************/
 
 _gameover:
+        /* Check if player life is lower then 0 */
         cmp     word ptr [rcx + ADDR_SPACESHIP + SPRITE_LIFE], 0
         jg      _gameover__end
 
+        /* Display gameover and handle keyboard with _menu */
         mov     r8, 0
         mov     r9, 0
         mov     r10, GAMEOVER_IMAGE
@@ -280,7 +288,7 @@ _gameover__end:
 ***********************************************************************/
 
 _max_min_cat:
-        /* Init r12 = max, r13 = max, r14 = count */
+        /* Init r12 = x_min, r13 = x_max, r14 = cat_count */
         mov     r12w, WIDTH_SCREEN
         mov     r13w, 0
         mov     r14w, 0
@@ -342,14 +350,21 @@ _spaceship_animation__end:
 /***********************************************************************
   Spaceship shoot
 ***********************************************************************/
+        /* Save cat information */ 
+        push    r12
+        push    r13
+        push    r14
 
 _spaceship_shoot:
+        /* Check if spaceship have cooldown */
         cmp     qword ptr[rcx + ADDR_SPACESHIP + SPRITE_TIMEOUT], 0
-        jg      _spaceship_shoot__elif_not_shooting_and_cooldown_ne_0
+        jg      _spaceship_shoot__reduce_cooldown
+
+        /* Check if spaceship is shooting */
         cmp     byte ptr [rcx + ADDR_SHOOT], 0
         je      _spaceship_shoot__end
 
-_spaceship_shoot__if_shoot_cooldown_eq_0:
+_spaceship_shoot__is_shooting_and_no_cooldown:
         mov     qword ptr[rcx + ADDR_SPACESHIP + SPRITE_TIMEOUT], SPACESHIP_SHOT_INTERVAL
 
         mov     r9w, word ptr[rcx + ADDR_SPACESHIP + SPRITE_W]
@@ -361,27 +376,21 @@ _spaceship_shoot__if_shoot_cooldown_eq_0:
 
         mov     r10w, word ptr[rcx + ADDR_SPACESHIP + SPRITE_Y]
         sub     r10w, word ptr[rsi + FOOD_IMAGE * 2]
-
-        push    r11
-        push    r12
-        push    r13
-        push    r14
-
         mov     r11, FOOD_IMAGE         # image
         mov     r12, FOOD_TYPE          # type
         mov     r13, 1                  # life
         mov     r14, 0                  # timeout
         call    create_sprite
 
-        pop     r14
-        pop     r13
-        pop     r12
-        pop     r11
-
-_spaceship_shoot__elif_not_shooting_and_cooldown_ne_0:
+_spaceship_shoot__reduce_cooldown:
         sub qword ptr[rcx + ADDR_SPACESHIP + SPRITE_TIMEOUT], 1
 
 _spaceship_shoot__end:
+
+        /* Reload cat information */
+        pop     r14
+        pop     r13
+        pop     r12
 
 
 /***********************************************************************
@@ -389,24 +398,30 @@ _spaceship_shoot__end:
 ***********************************************************************/
 
 _spaceship_move:
+        /* Check if spaceship is moving on the left */
         cmp     byte ptr [rcx + ADDR_MOVE_LEFT], 0
-        je      __spaceship_move__right
+        je      _spaceship_move__check_right
+
+        /* Ignore move if player press left and right */
         cmp     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
         jne     _spaceship_move__end
 
-__spaceship_move__left:
+_spaceship_move__left:
         sub     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], SPACESHIP_SPEED
-        /* Check if spaceship is outside on the left */
+        /* Check and replace the spaceship if overflows to the right */
         cmp     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], PADDING_X
         jge     _spaceship_move__end
         mov     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], PADDING_X
         jmp     _spaceship_move__end
 
-__spaceship_move__right:
+_spaceship_move__check_right:
+        /* Check if spaceship is moving on the right */
         cmp     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
         je      _spaceship_move__end
+
+_spaceship_move__right:
         add     word ptr [rcx + ADDR_SPACESHIP + SPRITE_X], SPACESHIP_SPEED
-        /* Check if spaceship is outside on the right */
+        /* Check and replace the spaceship if overflows to the left */
         mov     ax, word ptr [rcx + ADDR_SPACESHIP + SPRITE_X]
         add     ax, word ptr [rcx + ADDR_SPACESHIP + SPRITE_W]
         cmp     ax, WIDTH_SCREEN - PADDING_X
@@ -419,85 +434,95 @@ _spaceship_move__end:
 
 
 /***********************************************************************
-  Update move cats
+  Compute move cat
 ***********************************************************************/
 
-_update_cat_move:
+_compute_cat_move:
+        /* r15w = y_move, reminder r12 = x_min, r13 = x_max, r14 = cat_count */
         mov     r15w, 0
+
+        /* Check if cats or overflow on the right */
         cmp     r12w, PADDING_X
-        jle     _update_cat_move__right
+        jle     _compute_cat_move__right
+
+        /* Check if cats or overflow on the left */
         cmp     r13w, WIDTH_SCREEN - PADDING_X
-        jge     _update_cat_move__left
-        jmp     _update_cat_move__end_turn
+        jge     _compute_cat_move__left
 
-_update_cat_move__left:
+        /* Check if cats or overflow on the left */
+        jmp     _compute_cat_move__compute_speed
+
+_compute_cat_move__left:
         mov    byte ptr [rcx + ADDR_CATS_MOVE], - 1
-        mov    r15w, CAT_SPACE_Y
-        jmp     _update_cat_move__end_turn
+        mov    r15w, CAT_SPACE_Y                        # Move to the bottom
+        jmp     _compute_cat_move__compute_speed
 
-_update_cat_move__right:
+_compute_cat_move__right:
         mov    byte ptr [rcx + ADDR_CATS_MOVE], 1
-        mov    r15w, CAT_SPACE_Y
+        mov    r15w, CAT_SPACE_Y                        # Move to the bottom
 
-_update_cat_move__end_turn:
+_compute_cat_move__compute_speed:
         cmp     r14w, 2
-        jge     _update_cat_move__elif_cat_count_ge_2
+        jge     _compute_cat_move__elif_cat_count_ge_2
 
-_update_cat_move__if_cat_count_eq_1:
+_compute_cat_move__if_cat_count_eq_1:
         mov     rbx, 16
-        jmp     _update_cat_move__endif
+        jmp     _compute_cat_move__endif
 
-_update_cat_move__elif_cat_count_ge_2:
+_compute_cat_move__elif_cat_count_ge_2:
         cmp     r14w, 4
-        jge     _update_cat_move__elif_cat_count_ge_4
+        jge     _compute_cat_move__elif_cat_count_ge_4
         mov     rbx, 12
-        jmp     _update_cat_move__endif
+        jmp     _compute_cat_move__endif
 
-_update_cat_move__elif_cat_count_ge_4:
+_compute_cat_move__elif_cat_count_ge_4:
         cmp     r14w, 8
-        jge     _update_cat_move__elif_cat_count_ge_8
+        jge     _compute_cat_move__elif_cat_count_ge_8
         mov     rbx, 8
-        jmp     _update_cat_move__endif
+        jmp     _compute_cat_move__endif
 
-_update_cat_move__elif_cat_count_ge_8:
+_compute_cat_move__elif_cat_count_ge_8:
         cmp     r14w, 16
-        jge     _update_cat_move__elif_cat_count_ge_16
+        jge     _compute_cat_move__elif_cat_count_ge_16
         mov     rbx, 4
-        jmp     _update_cat_move__endif
+        jmp     _compute_cat_move__endif
 
-_update_cat_move__elif_cat_count_ge_16:
+_compute_cat_move__elif_cat_count_ge_16:
         cmp     r14w, 32
-        jge     _update_cat_move__elif_cat_count_ge_32
+        jge     _compute_cat_move__elif_cat_count_ge_32
         mov     rbx, 2
-        jmp     _update_cat_move__endif
+        jmp     _compute_cat_move__endif
 
-_update_cat_move__elif_cat_count_ge_32:
+_compute_cat_move__elif_cat_count_ge_32:
         mov     rbx, 1
 
-_update_cat_move__endif:
+_compute_cat_move__endif:
+        /* Compute x_move */
         movsx   rax, byte ptr [rcx + ADDR_CATS_MOVE]
         imul    rax, rbx
 
+_compute_cat_move__speed_reduction:
+        /* Reduce speed for to throw outside cats */
         add     r12w, ax
         cmp     r12w, PADDING_X
-        jl      _update_cat_move__if_cat_overflow_on_left
+        jl      _compute_cat_move__if_cat_overflow_on_left
         add     r13w, ax
         cmp     r13w, WIDTH_SCREEN - PADDING_X
-        jge     _update_cat_move__if_cat_overflow_on_right
-        jmp     _update_cat_move__end
+        jge     _compute_cat_move__if_cat_overflow_on_right
+        jmp     _compute_cat_move__end
 
-_update_cat_move__if_cat_overflow_on_left:
+_compute_cat_move__if_cat_overflow_on_left:
         sub     r12w, ax
         mov     ax, PADDING_X
         sub     ax, r12w
-        jmp     _update_cat_move__end
+        jmp     _compute_cat_move__end
 
-_update_cat_move__if_cat_overflow_on_right:
+_compute_cat_move__if_cat_overflow_on_right:
         sub     r13w, ax
         mov     ax, WIDTH_SCREEN - PADDING_X
         sub     ax, r13w
 
-_update_cat_move__end:
+_compute_cat_move__end:
 
 
 /***********************************************************************
@@ -505,24 +530,19 @@ _update_cat_move__end:
 ***********************************************************************/
 
 _update_cat:
+        /* Loop over cats */
         lea     r10, [rip + _update_cat__callback]
         mov     r11, CAT_TYPE
         call    apply_sprites
         jmp     _update_cat__end
 
 _update_cat__callback:
-        mov     r14, qword ptr [r8 + SPRITE_TIMEOUT]
-        cmp     r14, 0
+        /* Check if cat can shot */
+        cmp     qword ptr [r8 + SPRITE_TIMEOUT], 0
         jg      _update_cat__callback_not_shooting
-        mov     qword ptr [r8 + SPRITE_TIMEOUT], CAT_SHOT_INTERVAL
 
-        push    r8
-        push    r9
-        push    r10
-        push    r11
-        push    r12
-        push    r13
-        push    r14
+_update_cat__callback_is_shooting:
+        mov     qword ptr [r8 + SPRITE_TIMEOUT], CAT_SHOT_INTERVAL
 
         mov     r9w, word ptr [r8 + SPRITE_W]   # x
         ror     r9w, 1
@@ -532,20 +552,13 @@ _update_cat__callback:
         ror     r10w, 1
         add     r10w, word ptr [r8 + SPRITE_Y]  # y
 
-
+        push    r11
         mov     r11, MOUSE_IMAGE        # image
         mov     r12, MOUSE_TYPE         # type
         mov     r13, 1                  # life
         mov     r14, 0                  # timeout
         call    create_sprite
-        
-        pop     r14
-        pop     r13
-        pop     r12
         pop     r11
-        pop     r10
-        pop     r9
-        pop     r8
 
 _update_cat__callback_not_shooting:
         sub     qword ptr [r8 + SPRITE_TIMEOUT], 1
@@ -566,6 +579,8 @@ _update_cat__callback_go_down:
         cmp     r14w, HEIGHT_SCREEN
         jl      _update_cat__callback_not_ouside
 
+_update_cat__callback_ouside:
+        /* If cat reach end, kill it and make damage to spaceship */
         mov    word ptr [r8 + SPRITE_LIFE], 0
         sub    word ptr [rcx + ADDR_SPACESHIP + SPRITE_LIFE], 1
 
@@ -589,7 +604,7 @@ _update_mouse__callback:
         /* Move mouse */
         add     word ptr [r8 + SPRITE_Y], MOUSE_SPEED
 
-        /* Kill mouse if ouside screen */
+        /* Kill mouse if outside screen */
         mov     r10w, word ptr [r8 + SPRITE_Y]
         add     r10w, word ptr [r8 + SPRITE_H]
         cmp     r10w, HEIGHT_SCREEN
@@ -616,6 +631,8 @@ _update_food:
 
 _update_food__callback:
         sub     word ptr [r8 + SPRITE_Y], FOOD_SPEED
+
+        /* Kill food if outside screen */
         cmp     word ptr [r8 + SPRITE_Y], 0
         jge     _update_food__callback__else
 
@@ -629,7 +646,7 @@ _update_food__end:
 
 
 /***********************************************************************
-  Interaction
+  Interaction between entities
 ***********************************************************************/
 
 _interaction:
@@ -707,6 +724,8 @@ _interaction__kennel_mouse:
         sub     word ptr [r8 + SPRITE_LIFE],  1
         sub     word ptr [r10 + SPRITE_LIFE], 1
 
+        /* Update skin of kennel, destroy it by the top */
+
         cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL00_IMAGE
         jne     _interaction__kennel_mouse_skip_00
         mov     word ptr [r10 + SPRITE_IMAGE], KENNEL01_IMAGE
@@ -769,6 +788,18 @@ _interaction__food_cat:
 _interaction__food_cat_end:
 
 
+_interaction__food_mouse:
+        cmp     word ptr [r8 + SPRITE_TYPE], FOOD_TYPE
+        jne     _interaction__food_mouse_end
+        cmp     word ptr [r10 + SPRITE_TYPE], MOUSE_TYPE
+        jne     _interaction__food_mouse_end
+
+        sub     word ptr [r8 + SPRITE_LIFE],  1
+        sub     word ptr [r10 + SPRITE_LIFE], 1
+
+_interaction__food_mouse_end:
+
+
 _interaction__kennel_food:
         cmp     word ptr [r8 + SPRITE_TYPE], FOOD_TYPE
         jne     _interaction__kennel_food_end
@@ -777,6 +808,8 @@ _interaction__kennel_food:
 
         sub     word ptr [r8 + SPRITE_LIFE],  1
         sub     word ptr [r10 + SPRITE_LIFE],  1
+
+        /* Update skin of kennel, destroy it by the bottom */
 
         cmp     word ptr [r10 + SPRITE_IMAGE], KENNEL00_IMAGE
         jne     _interaction__kennel_food_skip_00
@@ -926,6 +959,7 @@ _draw_sprites__for_sprite_in_sprites:
 ***********************************************************************/
 
 _draw_hearts:
+        /* WARNING : do not reduce the code bellow */
         movsx   r11, word ptr [rcx + ADDR_SPACESHIP + SPRITE_LIFE]
         cmp     r11, 0
         jg      _draw_hearts__any_case
@@ -1031,7 +1065,7 @@ apply_sprites:
  /***************
   * Run a callback on every sprite with a given type.
   * Needed registers :
-  *     r10 : callback (r8 : actual sprite, dont touch to r9)
+  *     r10 : callback (r8 : actual sprite)
   *     r11 : type
   ***************/
         push    rbp
@@ -1053,7 +1087,6 @@ apply_sprites:
 _apply_sprites__for_sprite_in_sprites:
         cmp     word ptr [r8 + SPRITE_TYPE], r11w
         jne      _apply_sprites__if_type_not_match
-
 
         push    r8
         push    r9

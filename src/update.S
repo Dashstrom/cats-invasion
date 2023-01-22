@@ -24,7 +24,7 @@ L'image de fond se trouve dans le premier élément
 .data
 
 /* Configuration */
-BASE_SEED = 625726124           # Base for create speed for the LCG
+BASE_SEED = 625726124           # Base to create seed for the LCG
 MOUSE_SPEED = 16
 FOOD_SPEED = 24
 SPACESHIP_SPEED = 16
@@ -162,11 +162,11 @@ _menu__if_just_open_menu:
         mov     qword ptr [rcx + ADDR_TICK], 0
 _menu__else:
 
-        /* If cooldown is lower then 20 skip input */
+        /* If cooldown is lower than 20, skip input */
         cmp     qword ptr [rcx + ADDR_TICK], MENU_COOLDOWN
         jle     _update__end
 
-        /* Check keys, left for resart and right for leave */
+        /* Check keys, left for restart and right for leave */
         cmp     byte ptr [rcx + ADDR_MOVE_LEFT], 0
         jne     _initialization_init
         cmp     byte ptr [rcx + ADDR_MOVE_RIGHT], 0
@@ -268,7 +268,7 @@ _initialization__end:
 ***********************************************************************/
 
 _gameover:
-        /* Check if player life is lower then 0 */
+        /* Check if player life is lower than 0 */
         cmp     word ptr [rcx + ADDR_SPACESHIP + SPRITE_LIFE], 0
         jg      _gameover__end
 
@@ -537,7 +537,7 @@ _update_cat:
         jmp     _update_cat__end
 
 _update_cat__callback:
-        /* Check if cat can shot */
+        /* Check if cat can shoot */
         cmp     qword ptr [r8 + SPRITE_TIMEOUT], 0
         jg      _update_cat__callback_not_shooting
 
@@ -1186,7 +1186,7 @@ _end_delete_loop:
 
 draw_image:
  /***************
-  * Draw a image
+  * Draw an image
   * Needed registers :
   *      rdi : images widths (set at call time)
   *      rsi : images heights (set at call time)
@@ -1235,7 +1235,7 @@ draw_image:
 
 _draw_image__for_y_in_range_height:
 
-        /* Reverse iterat line e from width - 1 */
+        /* Reverse iterate line from width - 1 */
         mov     r13, r10
         dec     r13
 
